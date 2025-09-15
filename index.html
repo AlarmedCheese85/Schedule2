@@ -1,0 +1,807 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Blackjack Life Sim — Day 1</title>
+<style>
+  :root{
+    --bg:#071026;
+    --panel:#0f1724;
+    --muted:#9aa4b2;
+    --accent:#10b981;
+    --danger:#ef4444;
+    --glass: rgba(255,255,255,0.03);
+    --card:#ffffff;
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0;
+    font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+    background: linear-gradient(180deg,#071026 0%, #061022 100%);
+    color:var(--card);
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+
+  /* Top bar */
+  .topbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    padding:14px 18px;
+    border-bottom:1px solid rgba(255,255,255,0.03);
+    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.0));
+  }
+  .brand { font-weight:800; letter-spacing:0.6px; }
+  .stats { display:flex; gap:10px; align-items:center; }
+  .stat { background:var(--glass); padding:8px 12px; border-radius:999px; color:var(--muted); font-weight:700; border:1px solid rgba(255,255,255,0.02); }
+
+  /* Layout */
+  .main { display:flex; flex:1; padding:20px; gap:20px; align-items:flex-start; justify-content:center; }
+  .panel {
+    width:100%;
+    max-width:980px;
+    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+    border-radius:12px;
+    padding:18px;
+    box-shadow: 0 10px 30px rgba(2,6,23,0.65);
+    border:1px solid rgba(255,255,255,0.03);
+  }
+
+  .tabs { display:flex; gap:8px; margin-bottom:14px; }
+  .tabbtn { flex:1; padding:8px 12px; border-radius:10px; background:transparent; border:1px solid rgba(255,255,255,0.02); color:var(--muted); cursor:pointer; font-weight:700; }
+  .tabbtn.active { color:white; background: linear-gradient(90deg,#0b1220,#081025); border:1px solid rgba(16,185,129,0.12); box-shadow: 0 6px 18px rgba(16,185,129,0.04); }
+
+  .view { display:none; }
+  .view.active { display:block; }
+
+  /* Blackjack UI */
+  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+  .chip { background:linear-gradient(180deg,#071224,#06131f); padding:8px 12px; border-radius:999px; color:var(--card); font-weight:800; border:1px solid rgba(255,255,255,0.03); }
+  .controls { display:flex; gap:8px; align-items:center; margin:8px 0 14px 0; flex-wrap:wrap; }
+  input[type="number"]{ background:transparent; color:var(--card); border:1px solid rgba(255,255,255,0.04); padding:10px; border-radius:8px; width:110px; font-weight:700; }
+  button { background:transparent; color:var(--card); border:1px solid rgba(255,255,255,0.06); padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:800; }
+  button.primary{ background:linear-gradient(90deg,#06b6d4,#7c3aed); border:none; box-shadow:0 8px 20px rgba(124,58,237,0.12); color:white; }
+  button.info{ background:linear-gradient(90deg,#2563eb,#06b6d4); border:none; color:white; }
+  button.danger{ background:linear-gradient(90deg,#ef4444,#f97316); border:none; color:white; }
+
+  .table-block { display:flex; gap:18px; flex-wrap:wrap; }
+  .area { background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.02); flex:1 1 48%; min-width:260px; }
+  .area h3{ margin:0 0 8px 0; color:var(--muted); font-size:13px; }
+
+  .hand { display:flex; gap:10px; min-height:110px; align-items:center; }
+  .card {
+    width:84px; height:114px; border-radius:10px; background:linear-gradient(180deg,#fff,#f3f3f3); color:#111827; display:flex; flex-direction:column; justify-content:space-between; padding:8px; font-weight:800; box-shadow: 0 8px 24px rgba(2,6,23,0.45);
+  }
+  .card.small{ width:64px; height:86px; padding:6px; font-size:13px; }
+  .card.face-down{ background: linear-gradient(90deg,#223042,#0b1220); color:transparent; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 4px, transparent 4px 8px); }
+
+  .badges{ display:flex; gap:8px; margin-top:8px; }
+  .badge{ background:var(--glass); padding:8px 10px; border-radius:999px; color:var(--muted); font-weight:800; border:1px solid rgba(255,255,255,0.02); }
+
+  .message{ margin-top:12px; padding:10px; border-radius:10px; color:var(--card); font-weight:700; display:inline-block; }
+  .message.win{ background:linear-gradient(90deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); color:var(--accent); border:1px solid rgba(16,185,129,0.06); }
+  .message.loss{ background:linear-gradient(90deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); color:var(--danger); border:1px solid rgba(239,68,68,0.06); }
+
+  /* Fridge / Dealer */
+  .fridge { display:grid; grid-template-columns: repeat(auto-fill,48px); gap:8px; margin-top:12px; }
+  .beer-tile { width:48px; height:70px; background:linear-gradient(180deg,#fbbf24,#f59e0b); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:22px; box-shadow:0 6px 14px rgba(0,0,0,0.4); }
+  .inv-row { display:flex; gap:8px; align-items:center; margin-top:8px; }
+
+  /* Dealer Table */
+  .dealer-list { display:flex; flex-direction:column; gap:10px; }
+  .deal-item { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); border:1px solid rgba(255,255,255,0.02); }
+
+  footer { padding:12px 18px; color:var(--muted); font-size:13px; text-align:center; margin-top:auto; }
+
+  @media (max-width:880px){
+    .card { width:64px; height:92px; }
+    .area { flex-basis:100%; }
+  }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="brand">Blackjack Life Sim</div>
+    <div class="stats">
+      <div class="stat" id="cashStat">Cash: $0</div>
+      <div class="stat" id="loanStat">Loan: $0</div>
+      <div class="stat" id="creditStat">Credit: 700</div>
+      <div class="stat" id="happyStat">Happiness: 0</div>
+      <div class="stat" id="dayStat">Day 1</div>
+    </div>
+  </div>
+
+  <main class="main">
+    <div class="panel" role="main" aria-live="polite">
+      <div class="tabs" id="tabs">
+        <button class="tabbtn active" data-view="gameView">Game</button>
+        <button class="tabbtn" data-view="bankView">Bank</button>
+        <button class="tabbtn" data-view="dealerView">Dealer</button>
+        <button class="tabbtn" data-view="homeView">Home</button>
+      </div>
+
+      <!-- Game view -->
+      <section id="gameView" class="view active">
+        <div class="row" style="justify-content:space-between; align-items:center;">
+          <div>
+            <div class="chip" id="cashChip">Cash: $0</div>
+            <div class="chip" id="betChip">Bet: $0</div>
+          </div>
+          <div style="text-align:right;color:var(--muted);font-weight:700">Goal: Become a terrible gambling & beer addict — lower your happiness.</div>
+        </div>
+
+        <div class="controls">
+          <input id="betInput" type="number" min="1" value="10" />
+          <button id="placeBet" class="primary">Place Bet & Deal (requires beer)</button>
+          <button id="resetBtn" class="danger">Reset All</button>
+        </div>
+
+        <div class="table-block">
+          <div class="area">
+            <h3>Dealer</h3>
+            <div class="hand" id="dealerHand"></div>
+            <div class="badges">
+              <div class="badge" id="dealerTotal">—</div>
+              <div class="badge" id="dealerStatus">Waiting</div>
+            </div>
+          </div>
+
+          <div class="area">
+            <h3>You</h3>
+            <div class="hand" id="playerHand"></div>
+            <div class="badges">
+              <div class="badge" id="playerTotal">—</div>
+              <div class="badge" id="playerStatus">Place a bet</div>
+            </div>
+
+            <div style="margin-top:12px; display:flex; gap:8px;">
+              <button id="hitBtn" class="info" disabled>Hit</button>
+              <button id="standBtn" class="info" disabled>Stand</button>
+              <button id="doubleBtn" class="primary" disabled>Double</button>
+            </div>
+
+            <div id="msg" style="margin-top:12px"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Bank view -->
+      <section id="bankView" class="view">
+        <h3>Bank</h3>
+        <div class="row">
+          <div class="chip" id="loanChip">Loan: $0</div>
+          <div class="chip" id="creditChip">Credit: 700</div>
+        </div>
+
+        <div style="margin-top:12px;" class="inv-row">
+          <input id="loanAmount" type="number" min="1" value="100" />
+          <button id="takeLoan" class="info">Take Loan</button>
+          <button id="repayLoan" class="primary">Repay $100</button>
+        </div>
+        <p style="color:var(--muted); margin-top:8px;">Taking a loan raises your loan balance and drops your credit score.</p>
+      </section>
+
+      <!-- Dealer view -->
+      <section id="dealerView" class="view">
+        <h3>Dealer — in-game purchases</h3>
+        <div class="dealer-list" id="dealerList"></div>
+        <p style="color:var(--muted);margin-top:8px;">This is a fictional in-game shop. No real-world buying instructions are provided.</p>
+      </section>
+
+      <!-- Home view -->
+      <section id="homeView" class="view">
+        <h3>Home</h3>
+        <div class="row">
+          <div class="chip" id="happyChip">Happiness: 0</div>
+          <div class="chip" id="beersChip">Total units: 0</div>
+        </div>
+
+        <div style="margin-top:12px; display:flex; gap:8px;">
+          <button id="spendTime" class="primary">Spend time with family ❤️ (+10 happiness)</button>
+          <select id="drinkSelect" style="font-weight:700;padding:8px;border-radius:8px;background:transparent;color:var(--card);border:1px solid rgba(255,255,255,0.04)"></select>
+          <button id="drinkBtn" class="info">Drink Selected</button>
+        </div>
+
+        <h4 style="margin-top:14px;color:var(--muted)">Fridge</h4>
+        <div class="fridge" id="fridge"></div>
+        <p style="color:var(--muted); margin-top:10px;">Higher ABV = bigger drop to happiness when you drink. Happiness can go negative.</p>
+      </section>
+
+    </div>
+  </main>
+
+  <footer>All progress auto-saves to localStorage. This is a fictional game environment only.</footer>
+
+<script>
+/* ===========================
+   Persistent State (localStorage)
+   =========================== */
+const STORAGE_KEY = 'bjlifesim_v1';
+
+const defaultState = {
+  cash: 500,
+  loan: 0,
+  credit: 700,
+  happiness: 50,
+  day: 1,
+  inventory: [ // sample starter beers
+    { id: 'stdbeer', name: 'Standard Beer', abv: 5, price: 8, qty: 3 },
+    { id: 'light', name: 'Light Beer', abv: 3, price: 5, qty: 2 }
+  ]
+};
+
+function loadState(){
+  try{
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if(!raw) return JSON.parse(JSON.stringify(defaultState));
+    const parsed = JSON.parse(raw);
+    // ensure keys exist
+    return Object.assign(JSON.parse(JSON.stringify(defaultState)), parsed);
+  } catch(e){
+    console.error('loadState err', e);
+    return JSON.parse(JSON.stringify(defaultState));
+  }
+}
+function saveState(){
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+}
+
+let state = loadState();
+
+/* ===========================
+   UI refs
+   =========================== */
+const cashStat = document.getElementById('cashStat');
+const loanStat = document.getElementById('loanStat');
+const creditStat = document.getElementById('creditStat');
+const happyStat = document.getElementById('happyStat');
+const dayStat = document.getElementById('dayStat');
+
+const cashChip = document.getElementById('cashChip');
+const betChip = document.getElementById('betChip');
+const loanChip = document.getElementById('loanChip');
+const creditChip = document.getElementById('creditChip');
+const happyChip = document.getElementById('happyChip');
+const beersChip = document.getElementById('beersChip');
+
+const betInput = document.getElementById('betInput');
+const placeBetBtn = document.getElementById('placeBet');
+const resetBtn = document.getElementById('resetBtn');
+
+const dealerHandEl = document.getElementById('dealerHand');
+const playerHandEl = document.getElementById('playerHand');
+const dealerTotalEl = document.getElementById('dealerTotal');
+const dealerStatusEl = document.getElementById('dealerStatus');
+const playerTotalEl = document.getElementById('playerTotal');
+const playerStatusEl = document.getElementById('playerStatus');
+const msgEl = document.getElementById('msg');
+
+const hitBtn = document.getElementById('hitBtn');
+const standBtn = document.getElementById('standBtn');
+const doubleBtn = document.getElementById('doubleBtn');
+
+const takeLoanBtn = document.getElementById('takeLoan');
+const repayLoanBtn = document.getElementById('repayLoan') || document.getElementById('repayLoan'); // fallback
+const loanAmountInput = document.getElementById('loanAmount');
+
+const dealerListEl = document.getElementById('dealerList');
+
+const spendTimeBtn = document.getElementById('spendTime');
+const drinkSelect = document.getElementById('drinkSelect');
+const drinkBtn = document.getElementById('drinkBtn');
+const fridgeEl = document.getElementById('fridge');
+
+/* ===========================
+   Utility helpers
+   =========================== */
+function totalBeerUnits(){
+  return state.inventory.reduce((s,i)=>s+i.qty,0);
+}
+function findBestBeerIndex(){
+  // choose highest ABV with qty>0
+  let max = -1, idx = -1;
+  state.inventory.forEach((it, i)=>{
+    if(it.qty>0 && it.abv > max){ max = it.abv; idx = i; }
+  });
+  return idx;
+}
+function findItemIndexById(id){
+  return state.inventory.findIndex(i => i.id === id);
+}
+function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
+
+/* ===========================
+   Render UI
+   =========================== */
+function renderAll(){
+  // top stats
+  cashStat.textContent = `Cash: $${state.cash}`;
+  loanStat.textContent = `Loan: $${state.loan}`;
+  creditStat.textContent = `Credit: ${state.credit}`;
+  happyStat.textContent = `Happiness: ${state.happiness}`;
+  dayStat.textContent = `Day ${state.day}`;
+
+  // chips
+  cashChip.textContent = `Cash: $${state.cash}`;
+  betChip.textContent = `Bet: $${game.bet}`;
+  loanChip.textContent = `Loan: $${state.loan}`;
+  creditChip.textContent = `Credit: ${state.credit}`;
+  happyChip.textContent = `Happiness: ${state.happiness}`;
+  beersChip.textContent = `Total units: ${totalBeerUnits()}`;
+
+  // fridge
+  fridgeEl.innerHTML = '';
+  state.inventory.forEach(it => {
+    for(let n=0;n<it.qty;n++){
+      const node = document.createElement('div');
+      node.className = 'beer-tile';
+      node.title = `${it.name} — ${it.abv}% ABV`;
+      node.innerText = '🍺';
+      fridgeEl.appendChild(node);
+    }
+  });
+
+  // drink select
+  drinkSelect.innerHTML = '';
+  state.inventory.forEach((it, i) => {
+    const opt = document.createElement('option');
+    opt.value = it.id;
+    opt.text = `${it.name} — ${it.abv}% (x${it.qty})`;
+    drinkSelect.appendChild(opt);
+  });
+  // dealer items
+  renderDealerList();
+
+  // update messages / buttons states
+  updateActionButtons();
+
+  saveState();
+}
+
+function renderDealerList(){
+  dealerListEl.innerHTML = '';
+  const offerings = dealerOfferings();
+  offerings.forEach(off => {
+    const el = document.createElement('div');
+    el.className = 'deal-item';
+    el.innerHTML = `
+      <div style="font-weight:800">${off.name} <span style="color:var(--muted);font-weight:600">(${off.abv}% ABV)</span></div>
+      <div style="display:flex; gap:8px; align-items:center;">
+        <div style="color:var(--muted);font-weight:900">$${off.price}</div>
+        <button data-id="${off.id}" class="tabbtn buybtn">Buy</button>
+      </div>
+    `;
+    dealerListEl.appendChild(el);
+  });
+  // bind buy buttons
+  document.querySelectorAll('.buybtn').forEach(b => b.addEventListener('click', (e)=>{
+    const id = e.currentTarget.dataset.id;
+    buyFromDealer(id);
+  }));
+}
+
+/* ===========================
+   Dealer offerings (in-game only)
+   =========================== */
+function dealerOfferings(){
+  // unique ids
+  return [
+    { id: 'light', name: 'Light Beer', abv: 3, price: 5 },
+    { id: 'stdbeer', name: 'Standard Beer', abv: 5, price: 8 },
+    { id: 'strong', name: 'Strong Ale', abv: 8, price: 12 },
+    { id: 'moon', name: 'Moonshine (illicit)', abv: 40, price: 40 },
+    { id: 'highoct', name: 'High-Octane Spirit', abv: 70, price: 80 }
+  ];
+}
+
+/* ===========================
+   Inventory operations
+   =========================== */
+function addToInventory(id, name, abv, price, qty=1){
+  const idx = findItemIndexById(id);
+  if(idx >= 0){
+    state.inventory[idx].qty += qty;
+  } else {
+    state.inventory.push({ id, name, abv, price, qty });
+  }
+  renderAll();
+}
+
+function buyFromDealer(id){
+  const off = dealerOfferings().find(x=>x.id===id);
+  if(!off) return;
+  if(state.cash < off.price){ alert('Not enough cash to buy that.'); return; }
+  state.cash -= off.price;
+  addToInventory(off.id, off.name, off.abv, off.price, 1);
+  // buying alcohol has no direct credit effects here
+  renderAll();
+}
+
+/* ===========================
+   Consumption: drinking beer etc.
+   =========================== */
+function drinkItemById(id){
+  const idx = findItemIndexById(id);
+  if(idx < 0 || state.inventory[idx].qty <= 0){ alert('No such item in fridge.'); return false; }
+  const it = state.inventory[idx];
+  // consume one unit
+  it.qty -= 1;
+  // happiness penalty: higher ABV -> larger drop
+  // formula: happiness -= round(abv * 0.6)
+  const drop = Math.ceil(it.abv * 0.6);
+  state.happiness -= drop; // can go negative
+  // time doesn't automatically advance here; gameplay advances days on playing rounds.
+  renderAll();
+  return true;
+}
+
+/* ===========================
+   Game (Blackjack) implementation
+   =========================== */
+const game = {
+  deck: [],
+  player: [],
+  dealer: [],
+  bet: 0,
+  inRound: false,
+  doubled: false,
+  initialAction: true
+};
+
+function newDeck(){
+  const suits = ['♠','♥','♦','♣'];
+  const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+  const d = [];
+  for(const s of suits) for(const r of ranks) d.push({rank:r, suit:s});
+  // shuffle
+  for(let i=d.length-1;i>0;i--){
+    const j = Math.floor(Math.random()*(i+1));
+    [d[i], d[j]] = [d[j], d[i]];
+  }
+  return d;
+}
+function resetDeckIfNeeded(){
+  if(!game.deck || game.deck.length < 12) game.deck = newDeck();
+}
+function drawCard(){
+  resetDeckIfNeeded();
+  return game.deck.pop();
+}
+function cardColor(card){
+  return (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
+}
+function cardHTML(card, faceDown=false){
+  if(faceDown) return `<div class="card face-down small" aria-hidden="true"></div>`;
+  const color = cardColor(card) === 'red' ? 'red' : 'black';
+  const top = `<div class="top">${card.rank}</div>`;
+  const middle = `<div class="mid" style="font-size:24px">${card.suit}</div>`;
+  const bottom = `<div class="bottom" style="text-align:right">${card.rank}</div>`;
+  return `<div class="card ${color}">${top}${middle}${bottom}</div>`;
+}
+function handValues(cards){
+  let totals = [0];
+  for(const c of cards){
+    const r = c.rank;
+    let vals;
+    if(r === 'A') vals = [1,11];
+    else if(['J','Q','K'].includes(r)) vals = [10];
+    else vals = [parseInt(r,10)];
+    const next = [];
+    for(const t of totals) for(const v of vals) next.push(t+v);
+    totals = Array.from(new Set(next));
+  }
+  const under = totals.filter(n => n <= 21);
+  const best = under.length ? Math.max(...under) : Math.min(...totals);
+  return { best, all: totals };
+}
+function renderHands(hideDealerHole=true){
+  dealerHandEl.innerHTML = '';
+  game.dealer.forEach((c, idx) => {
+    const faceDown = hideDealerHole && idx === 1;
+    dealerHandEl.innerHTML += cardHTML(c, faceDown);
+  });
+  playerHandEl.innerHTML = '';
+  game.player.forEach(c => playerHandEl.innerHTML += cardHTML(c));
+  if(hideDealerHole && game.dealer.length >= 2){
+    const visible = [game.dealer[0]];
+    dealerTotalEl.textContent = `${handValues(visible).best}+`;
+  } else {
+    dealerTotalEl.textContent = game.dealer.length ? handValues(game.dealer).best : '—';
+  }
+  playerTotalEl.textContent = game.player.length ? handValues(game.player).best : '—';
+}
+
+function updateActionButtons(){
+  const canAct = game.inRound && game.bet > 0;
+  hitBtn.disabled = !canAct;
+  standBtn.disabled = !canAct;
+  doubleBtn.disabled = !(canAct && game.initialAction && state.cash >= game.bet);
+  // disable place bet while in round
+  placeBetBtn.disabled = game.inRound;
+}
+
+function startRound(){
+  // validations
+  const betVal = Math.floor(Number(betInput.value) || 0);
+  if(betVal <= 0){ showMsg('Enter a valid bet amount.', 'loss'); return; }
+  if(betVal > state.cash){ showMsg('Not enough cash for that bet.', 'loss'); return; }
+  if(totalBeerUnits() <= 0){ showMsg('You need beer to play — buy or stock some first.', 'loss'); return; }
+
+  // consume one beer (highest ABV available)
+  const idx = findBestBeerIndex();
+  if(idx < 0){ showMsg('No beer to consume — cannot play.', 'loss'); return; }
+  // consume and apply happiness drop
+  const consumed = state.inventory[idx];
+  consumed.qty -= 1;
+  const drop = Math.ceil(consumed.abv * 0.6);
+  state.happiness -= drop;
+
+  // start
+  game.bet = betVal;
+  state.cash -= betVal; // subtract immediately as stake
+  game.deck = game.deck || newDeck();
+  game.player = [drawCard(), drawCard()];
+  game.dealer = [drawCard(), drawCard()];
+  game.inRound = true;
+  game.doubled = false;
+  game.initialAction = true;
+  state.day += 1; // advance day when you start a round
+  renderHands(true);
+  showMsg('Round started — your move.', 'info');
+  playerStatusEl.textContent = 'Playing';
+  dealerStatusEl.textContent = 'Dealer waiting';
+  renderAll();
+  updateActionButtons();
+
+  // immediate blackjack check
+  const pVal = handValues(game.player).best;
+  const dVal = handValues(game.dealer).best;
+  const playerBJ = (handValues(game.player).all.includes(21) && game.player.length === 2 && pVal === 21);
+  const dealerBJ = (handValues(game.dealer).all.includes(21) && game.dealer.length === 2 && dVal === 21);
+
+  if(playerBJ || dealerBJ){
+    // reveal and resolve
+    renderHands(false);
+    resolveRound(true);
+  }
+}
+
+function playerHit(){
+  if(!game.inRound) return;
+  game.player.push(drawCard());
+  game.initialAction = false;
+  renderHands(true);
+  const pv = handValues(game.player).best;
+  if(pv > 21){
+    renderHands(false);
+    resolveRound(false);
+  } else {
+    showMsg('You drew a card.', 'info');
+  }
+  updateActionButtons();
+}
+
+function playerStand(){
+  if(!game.inRound) return;
+  renderHands(false);
+  resolveRound(false);
+}
+
+function playerDouble(){
+  if(!game.inRound || !game.initialAction) return;
+  if(state.cash < game.bet){ showMsg('Not enough cash to double.', 'loss'); return; }
+  // double down logic
+  state.cash -= game.bet;
+  game.bet *= 2;
+  game.doubled = true;
+  game.player.push(drawCard());
+  renderHands(false);
+  resolveRound(false);
+}
+
+function resolveRound(wasImmediateBlackjack=false){
+  // wasImmediateBlackjack signals that we came from initial BJ check and hands visible
+  const pv = handValues(game.player).best;
+  const dvStart = handValues(game.dealer).best;
+
+  // blackjack cases
+  const playerBJ = (handValues(game.player).all.includes(21) && game.player.length === 2 && pv === 21);
+  const dealerBJ = (handValues(game.dealer).all.includes(21) && game.dealer.length === 2 && dvStart === 21);
+
+  let outcome = 'loss'; // default
+  let payout = 0; // amount to add to cash (includes original where applicable)
+
+  if(playerBJ && dealerBJ){
+    outcome = 'push';
+    payout = game.bet; // return stake
+  } else if(playerBJ){
+    outcome = 'win';
+    payout = Math.round(game.bet * 2.5); // include original stake + 1.5*bet
+  } else if(dealerBJ){
+    outcome = 'loss';
+    payout = 0;
+  } else {
+    // normal resolution
+    // If player already busted
+    if(pv > 21){
+      outcome = 'loss'; payout = 0;
+    } else {
+      // dealer plays
+      let dv = handValues(game.dealer).best;
+      while(dv < 17){
+        game.dealer.push(drawCard());
+        dv = handValues(game.dealer).best;
+      }
+      renderHands(false);
+      if(dv > 21){
+        outcome = 'win';
+        payout = game.bet * 2;
+      } else if(dv > pv){
+        outcome = 'loss'; payout = 0;
+      } else if(dv < pv){
+        outcome = 'win'; payout = game.bet * 2;
+      } else {
+        outcome = 'push'; payout = game.bet;
+      }
+    }
+  }
+
+  // apply payout
+  if(outcome === 'win'){
+    state.cash += payout;
+    showMsg(`You win! Payout: $${payout}.`, 'win');
+  } else if(outcome === 'loss'){
+    showMsg('You lose.', 'loss');
+  } else {
+    // push
+    state.cash += payout;
+    showMsg('Push — bet returned.', 'info');
+  }
+
+  // end round
+  game.inRound = false;
+  game.bet = 0;
+  game.player = [];
+  game.dealer = [];
+  game.initialAction = true;
+  renderAll();
+  updateActionButtons();
+  playerStatusEl.textContent = (outcome === 'win' ? 'You won' : outcome === 'loss' ? 'You lost' : 'Push');
+  dealerStatusEl.textContent = 'Round over';
+}
+
+/* ===========================
+   Small UI helpers
+   =========================== */
+function showMsg(text, type){
+  msgEl.innerHTML = '';
+  if(!text) return;
+  const div = document.createElement('div');
+  div.className = 'message';
+  if(type === 'win') div.classList.add('win');
+  else if(type === 'loss') div.classList.add('loss');
+  div.textContent = text;
+  msgEl.appendChild(div);
+}
+
+/* ===========================
+   Bank / Loan
+   =========================== */
+function takeLoan(){
+  const amt = Math.floor(Number(loanAmountInput.value) || 0);
+  if(amt <= 0) { alert('Enter amount'); return; }
+  state.cash += amt;
+  state.loan += amt;
+  state.credit = Math.max(300, state.credit - 20);
+  renderAll();
+}
+function repayLoan(){
+  const pay = 100;
+  if(state.loan <= 0){ alert('No loan to repay'); return; }
+  const toPay = Math.min(pay, state.loan, state.cash);
+  if(toPay <= 0){ alert('Not enough cash to repay'); return; }
+  state.cash -= toPay;
+  state.loan -= toPay;
+  // slight credit improvement on repayment
+  state.credit = Math.min(850, state.credit + Math.round(toPay/50));
+  renderAll();
+}
+
+/* ===========================
+   Reset
+   =========================== */
+function resetAll(){
+  if(!confirm('Reset all saved progress?')) return;
+  state = JSON.parse(JSON.stringify(defaultState));
+  game.deck = newDeck();
+  game.bet = 0;
+  game.inRound = false;
+  saveState();
+  renderAll();
+  showMsg('Progress reset.', 'info');
+}
+
+/* ===========================
+   Event bindings
+   =========================== */
+document.querySelectorAll('.tabbtn').forEach(b => {
+  b.addEventListener('click', (e) => {
+    document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
+    e.currentTarget.classList.add('active');
+    document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+    const view = document.getElementById(e.currentTarget.dataset.view);
+    if(view) view.classList.add('active');
+  });
+});
+
+placeBetBtn.addEventListener('click', startRound);
+hitBtn.addEventListener('click', playerHit);
+standBtn.addEventListener('click', playerStand);
+doubleBtn.addEventListener('click', playerDouble);
+resetBtn.addEventListener('click', resetAll);
+
+takeLoanBtn.addEventListener('click', takeLoan);
+repayLoanBtn.addEventListener('click', repayLoan);
+
+spendTimeBtn.addEventListener('click', () => {
+  state.happiness = state.happiness + 10;
+  renderAll();
+  showMsg('You spent time with family. Happiness increased.', 'info');
+});
+
+drinkBtn.addEventListener('click', () => {
+  const selectedId = drinkSelect.value;
+  const idx = findItemIndexById(selectedId);
+  if(idx < 0){ alert('Select a valid item to drink.'); return; }
+  if(state.inventory[idx].qty <= 0){ alert('No units left of that item.'); return; }
+  drinkItemById(selectedId);
+  showMsg(`You drank ${state.inventory[idx].name || selectedId}.`, 'info');
+});
+
+/* keyboard shortcuts */
+document.addEventListener('keydown', (e) => {
+  if(document.querySelector('#gameView').classList.contains('active')){
+    if(e.key.toLowerCase() === 'h') hitBtn.click();
+    if(e.key.toLowerCase() === 's') standBtn.click();
+    if(e.key.toLowerCase() === 'd') doubleBtn.click();
+  }
+});
+
+/* ===========================
+   Buying helper (button delegated above)
+   =========================== */
+function buyFromDealer(id){
+  const off = dealerOfferings().find(x=>x.id===id);
+  if(!off) return;
+  if(state.cash < off.price){ alert('Not enough cash'); return; }
+  state.cash -= off.price;
+  addToInventory(off.id, off.name, off.abv, off.price, 1);
+  showMsg(`Bought ${off.name} for $${off.price}.`, 'info');
+}
+
+/* ===========================
+   Init: ensure some defaults and render
+   =========================== */
+function init(){
+  // ensure deck
+  game.deck = newDeck();
+  renderAll();
+}
+init();
+
+/* Expose repay button (it might be undefined in older DOM)
+   attach repayLoan if present */
+if(document.getElementById('repayLoan')){
+  document.getElementById('repayLoan').addEventListener('click', repayLoan);
+}
+
+/* final render guard */
+updateActionButtons();
+saveState();
+</script>
+</body>
+</html>
