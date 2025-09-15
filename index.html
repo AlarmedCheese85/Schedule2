@@ -3,805 +3,965 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Blackjack Life Sim — Day 1</title>
+<title>Life Casino Simulator — Full</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700;800&display=swap" rel="stylesheet">
 <style>
-  :root{
-    --bg:#071026;
-    --panel:#0f1724;
-    --muted:#9aa4b2;
-    --accent:#10b981;
-    --danger:#ef4444;
-    --glass: rgba(255,255,255,0.03);
-    --card:#ffffff;
-  }
-  *{box-sizing:border-box}
-  body{
-    margin:0;
-    font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
-    background: linear-gradient(180deg,#071026 0%, #061022 100%);
-    color:var(--card);
-    min-height:100vh;
-    display:flex;
-    flex-direction:column;
-  }
+:root{
+  --bg:#071026;
+  --panel:#0f1724;
+  --muted:#9aa4b2;
+  --accent:#10b981;
+  --danger:#ef4444;
+  --glass: rgba(255,255,255,0.03);
+  --card:#ffffff;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;
+  font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial;
+  background: linear-gradient(180deg,#071026 0%, #061022 100%);
+  color:var(--card);
+  min-height:100vh;
+  display:flex;
+  flex-direction:column;
+  overflow:hidden;
+}
 
-  /* Top bar */
-  .topbar{
-    display:flex;
-    align-items:center;
-    justify-content:space-between;
-    gap:12px;
-    padding:14px 18px;
-    border-bottom:1px solid rgba(255,255,255,0.03);
-    background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.0));
-  }
-  .brand { font-weight:800; letter-spacing:0.6px; }
-  .stats { display:flex; gap:10px; align-items:center; }
-  .stat { background:var(--glass); padding:8px 12px; border-radius:999px; color:var(--muted); font-weight:700; border:1px solid rgba(255,255,255,0.02); }
+/* Live subtle moving gradient background (non-blocking) */
+#bgCanvas{
+  position:fixed; left:0; top:0; width:100%; height:100%; z-index:0;
+  pointer-events:none;
+}
 
-  /* Layout */
-  .main { display:flex; flex:1; padding:20px; gap:20px; align-items:flex-start; justify-content:center; }
-  .panel {
-    width:100%;
-    max-width:980px;
-    background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
-    border-radius:12px;
-    padding:18px;
-    box-shadow: 0 10px 30px rgba(2,6,23,0.65);
-    border:1px solid rgba(255,255,255,0.03);
-  }
+/* Top bar */
+.topbar{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 18px;
+  border-bottom:1px solid rgba(255,255,255,0.03);
+  background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0));
+  position:relative;
+  z-index:2;
+}
+.brand { font-weight:800; letter-spacing:0.6px; font-size:18px;}
+.stats { display:flex; gap:10px; align-items:center; }
+.stat { background:var(--glass); padding:8px 12px; border-radius:999px; color:var(--muted); font-weight:700; border:1px solid rgba(255,255,255,0.02); }
 
-  .tabs { display:flex; gap:8px; margin-bottom:14px; }
-  .tabbtn { flex:1; padding:8px 12px; border-radius:10px; background:transparent; border:1px solid rgba(255,255,255,0.02); color:var(--muted); cursor:pointer; font-weight:700; }
-  .tabbtn.active { color:white; background: linear-gradient(90deg,#0b1220,#081025); border:1px solid rgba(16,185,129,0.12); box-shadow: 0 6px 18px rgba(16,185,129,0.04); }
+/* Layout */
+.container { display:flex; flex:1; padding:20px; gap:20px; align-items:flex-start; justify-content:center; z-index:2; position:relative; }
+.panel {
+  width:100%;
+  max-width:1100px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius:12px;
+  padding:18px;
+  box-shadow: 0 10px 30px rgba(2,6,23,0.65);
+  border:1px solid rgba(255,255,255,0.03);
+}
+.tabs { display:flex; gap:8px; margin-bottom:14px; }
+.tabbtn { flex:1; padding:8px 12px; border-radius:10px; background:transparent; border:1px solid rgba(255,255,255,0.02); color:var(--muted); cursor:pointer; font-weight:700; }
+.tabbtn.active { color:white; background: linear-gradient(90deg,#0b1220,#081025); border:1px solid rgba(16,185,129,0.12); box-shadow: 0 6px 18px rgba(16,185,129,0.04); }
+.view { display:none; }
+.view.active { display:block; }
 
-  .view { display:none; }
-  .view.active { display:block; }
+/* Controls */
+.row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
+.chip { background:linear-gradient(180deg,#071224,#06131f); padding:8px 12px; border-radius:999px; color:var(--card); font-weight:800; border:1px solid rgba(255,255,255,0.03); }
+.controls { display:flex; gap:8px; align-items:center; margin:8px 0 14px 0; flex-wrap:wrap; }
+input[type="number"], select{
+  background:transparent; color:var(--card); border:1px solid rgba(255,255,255,0.04);
+  padding:10px; border-radius:8px; width:120px; font-weight:700;
+}
+button { background:transparent; color:var(--card); border:1px solid rgba(255,255,255,0.06); padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:800; }
+button.primary{ background:linear-gradient(90deg,#06b6d4,#7c3aed); border:none; box-shadow:0 8px 20px rgba(124,58,237,0.12); color:white; }
+button.info{ background:linear-gradient(90deg,#2563eb,#06b6d4); border:none; color:white; }
+button.danger{ background:linear-gradient(90deg,#ef4444,#f97316); border:none; color:white; }
 
-  /* Blackjack UI */
-  .row { display:flex; gap:12px; align-items:center; flex-wrap:wrap; }
-  .chip { background:linear-gradient(180deg,#071224,#06131f); padding:8px 12px; border-radius:999px; color:var(--card); font-weight:800; border:1px solid rgba(255,255,255,0.03); }
-  .controls { display:flex; gap:8px; align-items:center; margin:8px 0 14px 0; flex-wrap:wrap; }
-  input[type="number"]{ background:transparent; color:var(--card); border:1px solid rgba(255,255,255,0.04); padding:10px; border-radius:8px; width:110px; font-weight:700; }
-  button { background:transparent; color:var(--card); border:1px solid rgba(255,255,255,0.06); padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:800; }
-  button.primary{ background:linear-gradient(90deg,#06b6d4,#7c3aed); border:none; box-shadow:0 8px 20px rgba(124,58,237,0.12); color:white; }
-  button.info{ background:linear-gradient(90deg,#2563eb,#06b6d4); border:none; color:white; }
-  button.danger{ background:linear-gradient(90deg,#ef4444,#f97316); border:none; color:white; }
+/* Areas */
+.table-block { display:flex; gap:18px; flex-wrap:wrap; }
+.area { background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.02); flex:1 1 48%; min-width:300px; }
+.area h3{ margin:0 0 8px 0; color:var(--muted); font-size:13px; }
 
-  .table-block { display:flex; gap:18px; flex-wrap:wrap; }
-  .area { background:linear-gradient(180deg, rgba(255,255,255,0.015), rgba(255,255,255,0.01)); padding:14px; border-radius:12px; border:1px solid rgba(255,255,255,0.02); flex:1 1 48%; min-width:260px; }
-  .area h3{ margin:0 0 8px 0; color:var(--muted); font-size:13px; }
+/* Card visuals */
+.hand { display:flex; gap:10px; min-height:120px; align-items:center; }
+.card {
+  width:92px; height:120px; border-radius:12px; background:linear-gradient(180deg,#fff,#f9fafb);
+  color:#111827; display:flex; flex-direction:column; justify-content:space-between; padding:10px; font-weight:800;
+  box-shadow: 0 12px 30px rgba(2,6,23,0.5); border:1px solid rgba(0,0,0,0.08);
+  transition:transform .12s, box-shadow .12s;
+  user-select:none;
+}
+.card.small{ width:70px; height:94px; padding:6px; font-size:13px; }
+.card.face-down{ background: linear-gradient(90deg,#223042,#0b1220); color:transparent; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 4px, transparent 4px 8px); }
+.card.red { color:#b91c1c; } /* hearts/diamonds */
+.card.black { color:#111827; }
 
-  .hand { display:flex; gap:10px; min-height:110px; align-items:center; }
-  .card {
-    width:84px; height:114px; border-radius:10px; background:linear-gradient(180deg,#fff,#f3f3f3); color:#111827; display:flex; flex-direction:column; justify-content:space-between; padding:8px; font-weight:800; box-shadow: 0 8px 24px rgba(2,6,23,0.45);
-  }
-  .card.small{ width:64px; height:86px; padding:6px; font-size:13px; }
-  .card.face-down{ background: linear-gradient(90deg,#223042,#0b1220); color:transparent; background-image: repeating-linear-gradient(45deg, rgba(255,255,255,0.015) 0 4px, transparent 4px 8px); }
+/* badges/messages */
+.badges{ display:flex; gap:8px; margin-top:8px; }
+.badge{ background:var(--glass); padding:8px 10px; border-radius:999px; color:var(--muted); font-weight:800; border:1px solid rgba(255,255,255,0.02); }
+.message{ margin-top:12px; padding:10px; border-radius:10px; color:var(--card); font-weight:700; display:inline-block; max-width:100%; word-break:break-word; }
+.message.win{ background:linear-gradient(90deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); color:var(--accent); border:1px solid rgba(16,185,129,0.06); }
+.message.loss{ background:linear-gradient(90deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); color:var(--danger); border:1px solid rgba(239,68,68,0.06); }
 
-  .badges{ display:flex; gap:8px; margin-top:8px; }
-  .badge{ background:var(--glass); padding:8px 10px; border-radius:999px; color:var(--muted); font-weight:800; border:1px solid rgba(255,255,255,0.02); }
+/* fridge / dealer list */
+.fridge { display:grid; grid-template-columns: repeat(auto-fill,56px); gap:10px; margin-top:12px; }
+.item-tile { width:56px; height:84px; border-radius:8px; display:flex; flex-direction:column; align-items:center; justify-content:center; font-size:18px; padding:6px; text-align:center; box-shadow:0 8px 18px rgba(0,0,0,0.4); cursor:pointer; }
 
-  .message{ margin-top:12px; padding:10px; border-radius:10px; color:var(--card); font-weight:700; display:inline-block; }
-  .message.win{ background:linear-gradient(90deg, rgba(16,185,129,0.08), rgba(16,185,129,0.02)); color:var(--accent); border:1px solid rgba(16,185,129,0.06); }
-  .message.loss{ background:linear-gradient(90deg, rgba(239,68,68,0.06), rgba(239,68,68,0.02)); color:var(--danger); border:1px solid rgba(239,68,68,0.06); }
+/* roulette */
+.roulette-wrapper{ display:flex; gap:16px; align-items:center; flex-direction:column; }
+.roulette-container { position:relative; width:360px; height:360px; border-radius:50%; overflow:hidden; }
+#rouletteCanvas{ width:100%; height:100%; display:block; }
+.roulettePointer { position:absolute; top:-12px; left:50%; transform:translateX(-50%); width:0;height:0;border-left:18px solid transparent;border-right:18px solid transparent;border-bottom:36px solid #10b981; z-index:5; }
 
-  /* Fridge / Dealer */
-  .fridge { display:grid; grid-template-columns: repeat(auto-fill,48px); gap:8px; margin-top:12px; }
-  .beer-tile { width:48px; height:70px; background:linear-gradient(180deg,#fbbf24,#f59e0b); border-radius:6px; display:flex; align-items:center; justify-content:center; font-size:22px; box-shadow:0 6px 14px rgba(0,0,0,0.4); }
-  .inv-row { display:flex; gap:8px; align-items:center; margin-top:8px; }
-
-  /* Dealer Table */
-  .dealer-list { display:flex; flex-direction:column; gap:10px; }
-  .deal-item { display:flex; justify-content:space-between; align-items:center; gap:12px; padding:8px; border-radius:8px; background:linear-gradient(180deg, rgba(255,255,255,0.01), rgba(255,255,255,0.005)); border:1px solid rgba(255,255,255,0.02); }
-
-  footer { padding:12px 18px; color:var(--muted); font-size:13px; text-align:center; margin-top:auto; }
-
-  @media (max-width:880px){
-    .card { width:64px; height:92px; }
-    .area { flex-basis:100%; }
-  }
+/* responsiveness */
+@media (max-width:900px){
+  .area { flex-basis:100%; }
+  .card { width:72px; height:96px; }
+  .roulette-container { width:280px; height:280px; }
+}
 </style>
 </head>
 <body>
-  <div class="topbar">
-    <div class="brand">Blackjack Life Sim</div>
-    <div class="stats">
-      <div class="stat" id="cashStat">Cash: $0</div>
-      <div class="stat" id="loanStat">Loan: $0</div>
-      <div class="stat" id="creditStat">Credit: 700</div>
-      <div class="stat" id="happyStat">Happiness: 0</div>
-      <div class="stat" id="dayStat">Day 1</div>
-    </div>
-  </div>
 
-  <main class="main">
-    <div class="panel" role="main" aria-live="polite">
-      <div class="tabs" id="tabs">
-        <button class="tabbtn active" data-view="gameView">Game</button>
-        <button class="tabbtn" data-view="bankView">Bank</button>
-        <button class="tabbtn" data-view="dealerView">Dealer</button>
-        <button class="tabbtn" data-view="homeView">Home</button>
+<canvas id="bgCanvas"></canvas>
+
+<div class="topbar">
+  <div class="brand">Life Casino Simulator</div>
+  <div class="stats">
+    <div class="stat" id="statCash">$500</div>
+    <div class="stat" id="statHappiness">🙂 50</div>
+    <div class="stat" id="statDay">Day 1</div>
+  </div>
+</div>
+
+<div class="container">
+  <div class="panel">
+    <div class="tabs" role="tablist">
+      <button class="tabbtn active" data-view="viewBlackjack">Blackjack</button>
+      <button class="tabbtn" data-view="viewPoker">Poker (Texas Hold'em)</button>
+      <button class="tabbtn" data-view="viewRoulette">Roulette</button>
+      <button class="tabbtn" data-view="viewDealer">Dealer Shop</button>
+      <button class="tabbtn" data-view="viewHome">Home / Fridge</button>
+    </div>
+
+    <!-- Blackjack -->
+    <section id="viewBlackjack" class="view active" aria-labelledby="">
+      <div class="table-block">
+        <div class="area">
+          <h3>Dealer</h3>
+          <div class="hand" id="bjDealer"></div>
+          <div class="badges"><div class="badge">Dealer total: <span id="bjDealerTotal">—</span></div></div>
+        </div>
+
+        <div class="area">
+          <h3>You</h3>
+          <div class="hand" id="bjPlayer"></div>
+          <div class="badges"><div class="badge">Player total: <span id="bjPlayerTotal">—</span></div></div>
+          <div class="controls">
+            <input type="number" id="bjBet" value="50" min="1">
+            <button class="primary" id="bjDealBtn">Deal</button>
+            <button class="info" id="bjHitBtn">Hit</button>
+            <button class="info" id="bjStandBtn">Stand</button>
+          </div>
+          <div id="bjMsg" class="message"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Poker -->
+    <section id="viewPoker" class="view" aria-labelledby="">
+      <div class="area">
+        <h3>Community Cards</h3>
+        <div class="hand" id="pokerCommunity"></div>
+        <div class="badges">
+          <div class="badge">Pot: $<span id="pokerPot">0</span></div>
+          <div class="badge">Bet: $<span id="pokerBetDisplay">0</span></div>
+        </div>
       </div>
 
-      <!-- Game view -->
-      <section id="gameView" class="view active">
-        <div class="row" style="justify-content:space-between; align-items:center;">
-          <div>
-            <div class="chip" id="cashChip">Cash: $0</div>
-            <div class="chip" id="betChip">Bet: $0</div>
-          </div>
-          <div style="text-align:right;color:var(--muted);font-weight:700">Goal: Become a terrible gambling & beer addict — lower your happiness.</div>
-        </div>
-
+      <div class="area">
+        <h3>Your Hand</h3>
+        <div class="hand" id="pokerPlayer"></div>
         <div class="controls">
-          <input id="betInput" type="number" min="1" value="10" />
-          <button id="placeBet" class="primary">Place Bet & Deal (requires beer)</button>
-          <button id="resetBtn" class="danger">Reset All</button>
+          <input type="number" id="pokerBet" value="50" min="1">
+          <button class="primary" id="pokerDealBtn">Deal (require alcohol)</button>
+          <button class="info" id="pokerFlopBtn" disabled>Flop</button>
+          <button class="info" id="pokerTurnBtn" disabled>Turn</button>
+          <button class="info" id="pokerRiverBtn" disabled>River</button>
+          <button class="danger" id="pokerShowdownBtn" disabled>Showdown</button>
+        </div>
+        <div id="pokerMsg" class="message"></div>
+      </div>
+    </section>
+
+    <!-- Roulette -->
+    <section id="viewRoulette" class="view" aria-labelledby="">
+      <div class="area roulette-wrapper">
+        <h3>Roulette Wheel</h3>
+        <div class="roulette-container">
+          <canvas id="rouletteCanvas" width="720" height="720"></canvas>
+          <div class="roulettePointer" aria-hidden="true"></div>
+        </div>
+        <div class="controls" style="margin-top:12px">
+          <input type="number" id="rouletteBet" value="50" min="1">
+          <input type="number" id="rouletteGuess" value="17" min="0" max="36" style="width:90px">
+          <button class="primary" id="rouletteSpinBtn">Spin</button>
+        </div>
+        <div id="rouletteMsg" class="message"></div>
+      </div>
+    </section>
+
+    <!-- Dealer Shop -->
+    <section id="viewDealer" class="view" aria-labelledby="">
+      <div class="area">
+        <h3>Dealer Shop</h3>
+        <div id="dealerList" class="dealer-list"></div>
+      </div>
+    </section>
+
+    <!-- Home / Fridge -->
+    <section id="viewHome" class="view" aria-labelledby="">
+      <div class="area">
+        <h3>Home / Fridge</h3>
+        <div class="badges">
+          <div class="badge">Happiness: <span id="displayHappiness">50</span></div>
+          <div class="badge">Day: <span id="displayDay">1</span></div>
+        </div>
+        <div style="margin-top:12px">
+          <button class="primary" id="spendTimeBtn">Spend time with family (+10 happiness)</button>
+          <select id="drinkSelect" style="padding:8px;border-radius:8px;background:transparent;color:var(--card);border:1px solid rgba(255,255,255,0.04);font-weight:700;margin-left:8px;"></select>
+          <button class="info" id="drinkBtn">Drink</button>
         </div>
 
-        <div class="table-block">
-          <div class="area">
-            <h3>Dealer</h3>
-            <div class="hand" id="dealerHand"></div>
-            <div class="badges">
-              <div class="badge" id="dealerTotal">—</div>
-              <div class="badge" id="dealerStatus">Waiting</div>
-            </div>
-          </div>
+        <h4 style="margin-top:12px;color:var(--muted)">Fridge</h4>
+        <div id="fridge" class="fridge"></div>
+        <p style="color:var(--muted); margin-top:10px;">Higher ABV → bigger drop to happiness when you drink. Happiness can go negative.</p>
+      </div>
+    </section>
 
-          <div class="area">
-            <h3>You</h3>
-            <div class="hand" id="playerHand"></div>
-            <div class="badges">
-              <div class="badge" id="playerTotal">—</div>
-              <div class="badge" id="playerStatus">Place a bet</div>
-            </div>
+  </div>
+</div>
 
-            <div style="margin-top:12px; display:flex; gap:8px;">
-              <button id="hitBtn" class="info" disabled>Hit</button>
-              <button id="standBtn" class="info" disabled>Stand</button>
-              <button id="doubleBtn" class="primary" disabled>Double</button>
-            </div>
-
-            <div id="msg" style="margin-top:12px"></div>
-          </div>
-        </div>
-      </section>
-
-      <!-- Bank view -->
-      <section id="bankView" class="view">
-        <h3>Bank</h3>
-        <div class="row">
-          <div class="chip" id="loanChip">Loan: $0</div>
-          <div class="chip" id="creditChip">Credit: 700</div>
-        </div>
-
-        <div style="margin-top:12px;" class="inv-row">
-          <input id="loanAmount" type="number" min="1" value="100" />
-          <button id="takeLoan" class="info">Take Loan</button>
-          <button id="repayLoan" class="primary">Repay $100</button>
-        </div>
-        <p style="color:var(--muted); margin-top:8px;">Taking a loan raises your loan balance and drops your credit score.</p>
-      </section>
-
-      <!-- Dealer view -->
-      <section id="dealerView" class="view">
-        <h3>Dealer — in-game purchases</h3>
-        <div class="dealer-list" id="dealerList"></div>
-        <p style="color:var(--muted);margin-top:8px;">This is a fictional in-game shop. No real-world buying instructions are provided.</p>
-      </section>
-
-      <!-- Home view -->
-      <section id="homeView" class="view">
-        <h3>Home</h3>
-        <div class="row">
-          <div class="chip" id="happyChip">Happiness: 0</div>
-          <div class="chip" id="beersChip">Total units: 0</div>
-        </div>
-
-        <div style="margin-top:12px; display:flex; gap:8px;">
-          <button id="spendTime" class="primary">Spend time with family ❤️ (+10 happiness)</button>
-          <select id="drinkSelect" style="font-weight:700;padding:8px;border-radius:8px;background:transparent;color:var(--card);border:1px solid rgba(255,255,255,0.04)"></select>
-          <button id="drinkBtn" class="info">Drink Selected</button>
-        </div>
-
-        <h4 style="margin-top:14px;color:var(--muted)">Fridge</h4>
-        <div class="fridge" id="fridge"></div>
-        <p style="color:var(--muted); margin-top:10px;">Higher ABV = bigger drop to happiness when you drink. Happiness can go negative.</p>
-      </section>
-
-    </div>
-  </main>
-
-  <footer>All progress auto-saves to localStorage. This is a fictional game environment only.</footer>
+<footer style="position:relative;z-index:2;padding:12px 20px;color:var(--muted)">Progress auto-saves in localStorage. Dev pixel: press Konami to toggle.</footer>
 
 <script>
-/* ===========================
-   Persistent State (localStorage)
-   =========================== */
-const STORAGE_KEY = 'bjlifesim_v1';
-
+/* ============================
+   Persistent state & defaults
+   ============================ */
+const STORAGE_KEY = 'life_casino_sim_v1';
 const defaultState = {
   cash: 500,
-  loan: 0,
-  credit: 700,
   happiness: 50,
   day: 1,
-  inventory: [ // sample starter beers
-    { id: 'stdbeer', name: 'Standard Beer', abv: 5, price: 8, qty: 3 },
-    { id: 'light', name: 'Light Beer', abv: 3, price: 5, qty: 2 }
+  loan: 0,
+  credit: 700,
+  inventory: [ // start with some beers to play
+    { id:'stdbeer', name:'Standard Beer', abv:5, price:8, qty:3 }
   ]
 };
+
+let state = loadState();
 
 function loadState(){
   try{
     const raw = localStorage.getItem(STORAGE_KEY);
     if(!raw) return JSON.parse(JSON.stringify(defaultState));
-    const parsed = JSON.parse(raw);
-    // ensure keys exist
-    return Object.assign(JSON.parse(JSON.stringify(defaultState)), parsed);
+    const p = JSON.parse(raw);
+    return Object.assign(JSON.parse(JSON.stringify(defaultState)), p);
   } catch(e){
-    console.error('loadState err', e);
+    console.error('load error', e);
     return JSON.parse(JSON.stringify(defaultState));
   }
 }
-function saveState(){
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+function saveState(){ localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); }
+
+/* ============================
+   Helpers & UI update
+   ============================ */
+function updateTopStats(){
+  document.getElementById('statCash').innerText = '$' + state.cash;
+  document.getElementById('statHappiness').innerText = (state.happiness>=0? '🙂 ':'☹️ ') + state.happiness;
+  document.getElementById('statDay').innerText = 'Day ' + state.day;
+  document.getElementById('displayHappiness').innerText = state.happiness;
+  document.getElementById('displayDay').innerText = state.day;
 }
-
-let state = loadState();
-
-/* ===========================
-   UI refs
-   =========================== */
-const cashStat = document.getElementById('cashStat');
-const loanStat = document.getElementById('loanStat');
-const creditStat = document.getElementById('creditStat');
-const happyStat = document.getElementById('happyStat');
-const dayStat = document.getElementById('dayStat');
-
-const cashChip = document.getElementById('cashChip');
-const betChip = document.getElementById('betChip');
-const loanChip = document.getElementById('loanChip');
-const creditChip = document.getElementById('creditChip');
-const happyChip = document.getElementById('happyChip');
-const beersChip = document.getElementById('beersChip');
-
-const betInput = document.getElementById('betInput');
-const placeBetBtn = document.getElementById('placeBet');
-const resetBtn = document.getElementById('resetBtn');
-
-const dealerHandEl = document.getElementById('dealerHand');
-const playerHandEl = document.getElementById('playerHand');
-const dealerTotalEl = document.getElementById('dealerTotal');
-const dealerStatusEl = document.getElementById('dealerStatus');
-const playerTotalEl = document.getElementById('playerTotal');
-const playerStatusEl = document.getElementById('playerStatus');
-const msgEl = document.getElementById('msg');
-
-const hitBtn = document.getElementById('hitBtn');
-const standBtn = document.getElementById('standBtn');
-const doubleBtn = document.getElementById('doubleBtn');
-
-const takeLoanBtn = document.getElementById('takeLoan');
-const repayLoanBtn = document.getElementById('repayLoan') || document.getElementById('repayLoan'); // fallback
-const loanAmountInput = document.getElementById('loanAmount');
-
-const dealerListEl = document.getElementById('dealerList');
-
-const spendTimeBtn = document.getElementById('spendTime');
-const drinkSelect = document.getElementById('drinkSelect');
-const drinkBtn = document.getElementById('drinkBtn');
-const fridgeEl = document.getElementById('fridge');
-
-/* ===========================
-   Utility helpers
-   =========================== */
-function totalBeerUnits(){
-  return state.inventory.reduce((s,i)=>s+i.qty,0);
+function inventoryCount(){
+  return state.inventory.reduce((s,it)=>s+it.qty,0);
 }
-function findBestBeerIndex(){
-  // choose highest ABV with qty>0
-  let max = -1, idx = -1;
-  state.inventory.forEach((it, i)=>{
-    if(it.qty>0 && it.abv > max){ max = it.abv; idx = i; }
-  });
-  return idx;
-}
-function findItemIndexById(id){
-  return state.inventory.findIndex(i => i.id === id);
-}
-function clamp(n,min,max){ return Math.max(min,Math.min(max,n)); }
-
-/* ===========================
-   Render UI
-   =========================== */
-function renderAll(){
-  // top stats
-  cashStat.textContent = `Cash: $${state.cash}`;
-  loanStat.textContent = `Loan: $${state.loan}`;
-  creditStat.textContent = `Credit: ${state.credit}`;
-  happyStat.textContent = `Happiness: ${state.happiness}`;
-  dayStat.textContent = `Day ${state.day}`;
-
-  // chips
-  cashChip.textContent = `Cash: $${state.cash}`;
-  betChip.textContent = `Bet: $${game.bet}`;
-  loanChip.textContent = `Loan: $${state.loan}`;
-  creditChip.textContent = `Credit: ${state.credit}`;
-  happyChip.textContent = `Happiness: ${state.happiness}`;
-  beersChip.textContent = `Total units: ${totalBeerUnits()}`;
-
-  // fridge
-  fridgeEl.innerHTML = '';
-  state.inventory.forEach(it => {
-    for(let n=0;n<it.qty;n++){
-      const node = document.createElement('div');
-      node.className = 'beer-tile';
-      node.title = `${it.name} — ${it.abv}% ABV`;
-      node.innerText = '🍺';
-      fridgeEl.appendChild(node);
-    }
-  });
-
-  // drink select
-  drinkSelect.innerHTML = '';
-  state.inventory.forEach((it, i) => {
+function ensureDrinkSelect(){
+  const sel = document.getElementById('drinkSelect');
+  sel.innerHTML='';
+  state.inventory.forEach(it=>{
     const opt = document.createElement('option');
     opt.value = it.id;
     opt.text = `${it.name} — ${it.abv}% (x${it.qty})`;
-    drinkSelect.appendChild(opt);
+    sel.appendChild(opt);
   });
-  // dealer items
-  renderDealerList();
-
-  // update messages / buttons states
-  updateActionButtons();
-
-  saveState();
 }
-
-function renderDealerList(){
-  dealerListEl.innerHTML = '';
-  const offerings = dealerOfferings();
-  offerings.forEach(off => {
-    const el = document.createElement('div');
-    el.className = 'deal-item';
-    el.innerHTML = `
-      <div style="font-weight:800">${off.name} <span style="color:var(--muted);font-weight:600">(${off.abv}% ABV)</span></div>
-      <div style="display:flex; gap:8px; align-items:center;">
-        <div style="color:var(--muted);font-weight:900">$${off.price}</div>
-        <button data-id="${off.id}" class="tabbtn buybtn">Buy</button>
-      </div>
-    `;
-    dealerListEl.appendChild(el);
+function renderFridge(){
+  const f = document.getElementById('fridge');
+  f.innerHTML='';
+  state.inventory.forEach(it=>{
+    for(let i=0;i<it.qty;i++){
+      const tile = document.createElement('div');
+      tile.className='item-tile';
+      tile.title = `${it.name} — ${it.abv}% ABV`;
+      tile.style.background = `linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.12))`;
+      tile.innerHTML = `<div style="font-weight:900">${it.name.split(' ')[0][0]}</div><div style="font-size:11px;margin-top:4px">${it.name}</div>`;
+      f.appendChild(tile);
+    }
   });
-  // bind buy buttons
-  document.querySelectorAll('.buybtn').forEach(b => b.addEventListener('click', (e)=>{
-    const id = e.currentTarget.dataset.id;
-    buyFromDealer(id);
-  }));
 }
-
-/* ===========================
-   Dealer offerings (in-game only)
-   =========================== */
-function dealerOfferings(){
-  // unique ids
+function updateDealerList(){
+  const dealer = getDealerOfferings();
+  const cont = document.getElementById('dealerList');
+  cont.innerHTML='';
+  dealer.forEach(item=>{
+    const div = document.createElement('div');
+    div.className = 'deal-item';
+    div.innerHTML = `<div style="font-weight:800">${item.name} <span style="color:var(--muted);font-weight:600">(${item.abv} ABV)</span></div>
+      <div style="display:flex;align-items:center;gap:10px"><div style="color:var(--muted);font-weight:900">$${item.price}</div>
+      <button class="primary" onclick="buyFromDealer('${item.id}')">Buy</button></div>`;
+    cont.appendChild(div);
+  });
+}
+function getDealerOfferings(){
   return [
-    { id: 'light', name: 'Light Beer', abv: 3, price: 5 },
-    { id: 'stdbeer', name: 'Standard Beer', abv: 5, price: 8 },
-    { id: 'strong', name: 'Strong Ale', abv: 8, price: 12 },
-    { id: 'moon', name: 'Moonshine (illicit)', abv: 40, price: 40 },
-    { id: 'highoct', name: 'High-Octane Spirit', abv: 70, price: 80 }
+    { id:'light', name:'Light Beer', abv:3, price:5 },
+    { id:'stdbeer', name:'Standard Beer', abv:5, price:8 },
+    { id:'lager', name:'Lager', abv:4, price:6 },
+    { id:'ale', name:'Strong Ale', abv:8, price:12 },
+    { id:'vodka', name:'Vodka', abv:35, price:20 },
+    { id:'whiskey', name:'Whiskey', abv:40, price:25 },
+    { id:'moonshine', name:'Moonshine', abv:60, price:50 }
   ];
 }
-
-/* ===========================
-   Inventory operations
-   =========================== */
-function addToInventory(id, name, abv, price, qty=1){
-  const idx = findItemIndexById(id);
-  if(idx >= 0){
-    state.inventory[idx].qty += qty;
-  } else {
-    state.inventory.push({ id, name, abv, price, qty });
-  }
-  renderAll();
-}
-
 function buyFromDealer(id){
-  const off = dealerOfferings().find(x=>x.id===id);
-  if(!off) return;
-  if(state.cash < off.price){ alert('Not enough cash to buy that.'); return; }
-  state.cash -= off.price;
-  addToInventory(off.id, off.name, off.abv, off.price, 1);
-  // buying alcohol has no direct credit effects here
-  renderAll();
+  const item = getDealerOfferings().find(i=>i.id===id);
+  if(!item) return;
+  if(state.cash < item.price){ alert('Not enough cash.'); return; }
+  state.cash -= item.price;
+  // add to inventory or increase qty
+  const idx = state.inventory.findIndex(it=>it.id===item.id);
+  if(idx>=0) state.inventory[idx].qty++;
+  else state.inventory.push({ id:item.id, name:item.name, abv:item.abv, price:item.price, qty:1 });
+  saveState(); renderFridge(); ensureDrinkSelect(); updateTopStats(); updateDealerList();
 }
 
-/* ===========================
-   Consumption: drinking beer etc.
-   =========================== */
-function drinkItemById(id){
-  const idx = findItemIndexById(id);
-  if(idx < 0 || state.inventory[idx].qty <= 0){ alert('No such item in fridge.'); return false; }
-  const it = state.inventory[idx];
-  // consume one unit
-  it.qty -= 1;
-  // happiness penalty: higher ABV -> larger drop
-  // formula: happiness -= round(abv * 0.6)
-  const drop = Math.ceil(it.abv * 0.6);
-  state.happiness -= drop; // can go negative
-  // time doesn't automatically advance here; gameplay advances days on playing rounds.
-  renderAll();
-  return true;
+/* Drink */
+function drinkSelected(){
+  const sel = document.getElementById('drinkSelect');
+  if(!sel || sel.options.length===0){ alert('No drink in fridge'); return; }
+  const id = sel.value;
+  const idx = state.inventory.findIndex(it=>it.id===id);
+  if(idx<0) { alert('No such item'); return; }
+  const item = state.inventory[idx];
+  if(item.qty<=0){ alert('No units left'); return; }
+  item.qty--;
+  // happiness decreases by ceil(abv * 0.6)
+  const drop = Math.ceil(item.abv * 0.6);
+  state.happiness -= drop;
+  if(state.happiness < -100) state.happiness = -100;
+  saveState();
+  renderFridge(); ensureDrinkSelect(); updateTopStats();
 }
 
-/* ===========================
-   Game (Blackjack) implementation
-   =========================== */
-const game = {
-  deck: [],
-  player: [],
-  dealer: [],
-  bet: 0,
-  inRound: false,
-  doubled: false,
-  initialAction: true
-};
+/* Spend time with family */
+document.getElementById('spendTimeBtn').addEventListener('click', ()=>{
+  state.happiness += 10;
+  state.day += 1;
+  saveState(); updateTopStats();
+  alert('You spent time with family. Happiness +10.');
+});
+
+/* Initialize dealer/inventory UIs */
+updateDealerList();
+renderFridge();
+ensureDrinkSelect();
+updateTopStats();
+
+/* ============================
+   Blackjack implementation
+   ============================ */
+let bjDeck = [], bjPlayer = [], bjDealer = [], bjInRound = false, bjBet = 0;
 
 function newDeck(){
   const suits = ['♠','♥','♦','♣'];
-  const ranks = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
+  const values = ['A','2','3','4','5','6','7','8','9','10','J','Q','K'];
   const d = [];
-  for(const s of suits) for(const r of ranks) d.push({rank:r, suit:s});
+  for(const s of suits) for(const v of values) d.push({suit:s, val:v});
   // shuffle
-  for(let i=d.length-1;i>0;i--){
-    const j = Math.floor(Math.random()*(i+1));
-    [d[i], d[j]] = [d[j], d[i]];
-  }
+  for(let i=d.length-1;i>0;i--){ const j = Math.floor(Math.random()*(i+1)); [d[i], d[j]] = [d[j], d[i]]; }
   return d;
 }
-function resetDeckIfNeeded(){
-  if(!game.deck || game.deck.length < 12) game.deck = newDeck();
-}
-function drawCard(){
-  resetDeckIfNeeded();
-  return game.deck.pop();
-}
-function cardColor(card){
-  return (card.suit === '♥' || card.suit === '♦') ? 'red' : 'black';
-}
-function cardHTML(card, faceDown=false){
-  if(faceDown) return `<div class="card face-down small" aria-hidden="true"></div>`;
-  const color = cardColor(card) === 'red' ? 'red' : 'black';
-  const top = `<div class="top">${card.rank}</div>`;
-  const middle = `<div class="mid" style="font-size:24px">${card.suit}</div>`;
-  const bottom = `<div class="bottom" style="text-align:right">${card.rank}</div>`;
-  return `<div class="card ${color}">${top}${middle}${bottom}</div>`;
-}
-function handValues(cards){
-  let totals = [0];
-  for(const c of cards){
-    const r = c.rank;
-    let vals;
-    if(r === 'A') vals = [1,11];
-    else if(['J','Q','K'].includes(r)) vals = [10];
-    else vals = [parseInt(r,10)];
-    const next = [];
-    for(const t of totals) for(const v of vals) next.push(t+v);
-    totals = Array.from(new Set(next));
-  }
-  const under = totals.filter(n => n <= 21);
-  const best = under.length ? Math.max(...under) : Math.min(...totals);
-  return { best, all: totals };
-}
-function renderHands(hideDealerHole=true){
-  dealerHandEl.innerHTML = '';
-  game.dealer.forEach((c, idx) => {
-    const faceDown = hideDealerHole && idx === 1;
-    dealerHandEl.innerHTML += cardHTML(c, faceDown);
+function resetBJDeck(){ bjDeck = newDeck(); }
+function bjRender(){
+  const pdiv = document.getElementById('bjPlayer');
+  const ddiv = document.getElementById('bjDealer');
+  pdiv.innerHTML = '';
+  ddiv.innerHTML = '';
+  bjPlayer.forEach(c=>{
+    const el = document.createElement('div'); el.className='card ' + ((c.suit==='♥' || c.suit==='♦')?'red':'black'); el.innerHTML = `<div style="font-size:18px">${c.val}</div><div style="font-size:20px">${c.suit}</div>`; pdiv.appendChild(el);
   });
-  playerHandEl.innerHTML = '';
-  game.player.forEach(c => playerHandEl.innerHTML += cardHTML(c));
-  if(hideDealerHole && game.dealer.length >= 2){
-    const visible = [game.dealer[0]];
-    dealerTotalEl.textContent = `${handValues(visible).best}+`;
-  } else {
-    dealerTotalEl.textContent = game.dealer.length ? handValues(game.dealer).best : '—';
+  bjDealer.forEach((c,i)=>{
+    const el = document.createElement('div');
+    if(i===0 && bjInRound){ el.className='card face-down'; el.innerHTML=''; }
+    else { el.className='card ' + ((c.suit==='♥' || c.suit==='♦')?'red':'black'); el.innerHTML = `<div style="font-size:18px">${c.val}</div><div style="font-size:20px">${c.suit}</div>`; }
+    ddiv.appendChild(el);
+  });
+  document.getElementById('bjPlayerTotal').innerText = bjPlayer.length ? calcHandTotal(bjPlayer) : '—';
+  document.getElementById('bjDealerTotal').innerText = (bjInRound && bjDealer.length>0) ? '?' : (bjDealer.length ? calcHandTotal(bjDealer) : '—');
+}
+function calcHandTotal(hand){
+  let sum=0, aces=0;
+  for(const c of hand){
+    if(c.val==='A'){ sum += 11; aces++; }
+    else if(['J','Q','K'].includes(c.val)) sum += 10;
+    else sum += parseInt(c.val);
   }
-  playerTotalEl.textContent = game.player.length ? handValues(game.player).best : '—';
+  while(sum>21 && aces>0){ sum -= 10; aces--; }
+  return sum;
 }
 
-function updateActionButtons(){
-  const canAct = game.inRound && game.bet > 0;
-  hitBtn.disabled = !canAct;
-  standBtn.disabled = !canAct;
-  doubleBtn.disabled = !(canAct && game.initialAction && state.cash >= game.bet);
-  // disable place bet while in round
-  placeBetBtn.disabled = game.inRound;
-}
-
-function startRound(){
-  // validations
-  const betVal = Math.floor(Number(betInput.value) || 0);
-  if(betVal <= 0){ showMsg('Enter a valid bet amount.', 'loss'); return; }
-  if(betVal > state.cash){ showMsg('Not enough cash for that bet.', 'loss'); return; }
-  if(totalBeerUnits() <= 0){ showMsg('You need beer to play — buy or stock some first.', 'loss'); return; }
-
-  // consume one beer (highest ABV available)
-  const idx = findBestBeerIndex();
-  if(idx < 0){ showMsg('No beer to consume — cannot play.', 'loss'); return; }
-  // consume and apply happiness drop
-  const consumed = state.inventory[idx];
-  consumed.qty -= 1;
-  const drop = Math.ceil(consumed.abv * 0.6);
-  state.happiness -= drop;
-
-  // start
-  game.bet = betVal;
-  state.cash -= betVal; // subtract immediately as stake
-  game.deck = game.deck || newDeck();
-  game.player = [drawCard(), drawCard()];
-  game.dealer = [drawCard(), drawCard()];
-  game.inRound = true;
-  game.doubled = false;
-  game.initialAction = true;
-  state.day += 1; // advance day when you start a round
-  renderHands(true);
-  showMsg('Round started — your move.', 'info');
-  playerStatusEl.textContent = 'Playing';
-  dealerStatusEl.textContent = 'Dealer waiting';
-  renderAll();
-  updateActionButtons();
-
-  // immediate blackjack check
-  const pVal = handValues(game.player).best;
-  const dVal = handValues(game.dealer).best;
-  const playerBJ = (handValues(game.player).all.includes(21) && game.player.length === 2 && pVal === 21);
-  const dealerBJ = (handValues(game.dealer).all.includes(21) && game.dealer.length === 2 && dVal === 21);
-
-  if(playerBJ || dealerBJ){
-    // reveal and resolve
-    renderHands(false);
-    resolveRound(true);
-  }
-}
-
-function playerHit(){
-  if(!game.inRound) return;
-  game.player.push(drawCard());
-  game.initialAction = false;
-  renderHands(true);
-  const pv = handValues(game.player).best;
-  if(pv > 21){
-    renderHands(false);
-    resolveRound(false);
+document.getElementById('bjDealBtn').addEventListener('click', ()=>{
+  // require at least one drink unit to play blackjack
+  if(inventoryCount() <= 0){ alert('You need at least one alcohol unit in your inventory to play.'); return; }
+  bjBet = parseInt(document.getElementById('bjBet').value) || 0;
+  if(bjBet <= 0){ alert('Enter a bet'); return; }
+  if(bjBet > state.cash){ alert('Not enough cash'); return; }
+  state.cash -= bjBet;
+  // consume one alcohol (highest ABV)
+  const idx = state.inventory.reduce((best,i,ii)=> (i.qty>0 && i.abv > (best.abv||-1))? Object.assign({i,ii},{abv:i.abv}):best, {});
+  if(idx.ii !== undefined){
+    state.inventory[idx.ii].qty--;
   } else {
-    showMsg('You drew a card.', 'info');
+    // fallback: consume first item
+    state.inventory[0].qty--;
   }
-  updateActionButtons();
-}
+  // advance day
+  state.day++;
+  saveState(); updateTopStats(); renderFridge(); ensureDrinkSelect();
 
-function playerStand(){
-  if(!game.inRound) return;
-  renderHands(false);
-  resolveRound(false);
-}
+  bjInRound = true;
+  resetBJDeck();
+  bjPlayer = [bjDeck.pop(), bjDeck.pop()];
+  bjDealer = [bjDeck.pop(), bjDeck.pop()];
+  bjRender();
+  document.getElementById('bjMsg').innerText = 'Round started — hit or stand.';
+});
 
-function playerDouble(){
-  if(!game.inRound || !game.initialAction) return;
-  if(state.cash < game.bet){ showMsg('Not enough cash to double.', 'loss'); return; }
-  // double down logic
-  state.cash -= game.bet;
-  game.bet *= 2;
-  game.doubled = true;
-  game.player.push(drawCard());
-  renderHands(false);
-  resolveRound(false);
-}
-
-function resolveRound(wasImmediateBlackjack=false){
-  // wasImmediateBlackjack signals that we came from initial BJ check and hands visible
-  const pv = handValues(game.player).best;
-  const dvStart = handValues(game.dealer).best;
-
-  // blackjack cases
-  const playerBJ = (handValues(game.player).all.includes(21) && game.player.length === 2 && pv === 21);
-  const dealerBJ = (handValues(game.dealer).all.includes(21) && game.dealer.length === 2 && dvStart === 21);
-
-  let outcome = 'loss'; // default
-  let payout = 0; // amount to add to cash (includes original where applicable)
-
-  if(playerBJ && dealerBJ){
-    outcome = 'push';
-    payout = game.bet; // return stake
-  } else if(playerBJ){
-    outcome = 'win';
-    payout = Math.round(game.bet * 2.5); // include original stake + 1.5*bet
-  } else if(dealerBJ){
-    outcome = 'loss';
-    payout = 0;
+document.getElementById('bjHitBtn').addEventListener('click', ()=>{
+  if(!bjInRound){ alert('Deal first'); return; }
+  bjPlayer.push(bjDeck.pop()); bjRender();
+  const total = calcHandTotal(bjPlayer);
+  if(total > 21){
+    bjInRound = false;
+    document.getElementById('bjMsg').innerText = 'You busted — you lose.';
+    document.getElementById('bjMsg').className='message loss';
+    saveState(); updateTopStats();
   } else {
-    // normal resolution
-    // If player already busted
-    if(pv > 21){
-      outcome = 'loss'; payout = 0;
-    } else {
-      // dealer plays
-      let dv = handValues(game.dealer).best;
-      while(dv < 17){
-        game.dealer.push(drawCard());
-        dv = handValues(game.dealer).best;
-      }
-      renderHands(false);
-      if(dv > 21){
-        outcome = 'win';
-        payout = game.bet * 2;
-      } else if(dv > pv){
-        outcome = 'loss'; payout = 0;
-      } else if(dv < pv){
-        outcome = 'win'; payout = game.bet * 2;
+    document.getElementById('bjMsg').innerText = 'You drew a card.';
+  }
+});
+
+document.getElementById('bjStandBtn').addEventListener('click', ()=>{
+  if(!bjInRound){ alert('Deal first'); return; }
+  // dealer plays
+  while(calcHandTotal(bjDealer) < 17) bjDealer.push(bjDeck.pop());
+  bjInRound = false;
+  bjRender();
+  const pSum = calcHandTotal(bjPlayer);
+  const dSum = calcHandTotal(bjDealer);
+  if(pSum > 21){ // already busted
+    document.getElementById('bjMsg').innerText = 'You busted — you lose.';
+    document.getElementById('bjMsg').className='message loss';
+  } else if(dSum > 21 || pSum > dSum){
+    // player wins — payout 2x (simple)
+    state.cash += bjBet * 2;
+    document.getElementById('bjMsg').innerText = `You win! Payout $${bjBet*2}`;
+    document.getElementById('bjMsg').className='message win';
+  } else if(pSum === dSum){
+    // push — return stake
+    state.cash += bjBet;
+    document.getElementById('bjMsg').innerText = 'Push — bet returned.';
+    document.getElementById('bjMsg').className='message';
+  } else {
+    document.getElementById('bjMsg').innerText = 'Dealer wins.';
+    document.getElementById('bjMsg').className='message loss';
+  }
+  saveState(); updateTopStats();
+});
+
+/* ============================
+   Roulette: draw wheel on canvas and spin
+   ============================ */
+const rouletteCanvas = document.getElementById('rouletteCanvas');
+const rctx = rouletteCanvas.getContext('2d');
+let wheelRadius = rouletteCanvas.width/2;
+const pockets = [
+  /* order for European roulette (single zero) */
+  0,32,15,19,4,21,2,25,17,34,6,27,13,36,11,30,8,23,10,5,24,16,33,1,20,14,31,9,22,18,29,7,28,12,35,3,26
+]; // length 37
+const colors = pockets.map(n => n === 0 ? 'green' : ( [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36].includes(n) ? 'red' : 'black'));
+
+// draw wheel
+function drawWheel(){
+  const size = Math.min(window.innerWidth*0.6, 720);
+  rouletteCanvas.width = size;
+  rouletteCanvas.height = size;
+  wheelRadius = size/2;
+  const cx = wheelRadius, cy = wheelRadius;
+  const segAngle = (2*Math.PI)/pockets.length;
+  rctx.clearRect(0,0,size,size);
+
+  // outer circle
+  rctx.save();
+  rctx.translate(cx,cy);
+  for(let i=0;i<pockets.length;i++){
+    const start = i*segAngle;
+    rctx.beginPath();
+    rctx.moveTo(0,0);
+    rctx.arc(0,0,wheelRadius,start,start+segAngle);
+    rctx.closePath();
+    rctx.fillStyle = colors[i];
+    rctx.fill();
+
+    // number
+    rctx.save();
+    rctx.rotate(start + segAngle/2);
+    rctx.translate(wheelRadius*0.75,0);
+    rctx.rotate(Math.PI/2);
+    rctx.fillStyle = 'white';
+    rctx.font = `${Math.max(12, Math.floor(size/30))}px Inter, sans-serif`;
+    rctx.textAlign = 'center';
+    rctx.fillText(String(pockets[i]), 0, 0);
+    rctx.restore();
+  }
+  rctx.restore();
+
+  // inner circle
+  rctx.beginPath();
+  rctx.arc(cx,cy,wheelRadius*0.50,0,Math.PI*2);
+  rctx.fillStyle = '#061022';
+  rctx.fill();
+
+  // center dot
+  rctx.beginPath();
+  rctx.arc(cx,cy,6,0,Math.PI*2);
+  rctx.fillStyle = '#ddd';
+  rctx.fill();
+}
+drawWheel();
+window.addEventListener('resize', drawWheel);
+
+let spinning = false;
+function spinRoulette(){
+  if(spinning) return;
+  const bet = parseInt(document.getElementById('rouletteBet').value) || 0;
+  const guess = parseInt(document.getElementById('rouletteGuess').value);
+  if(bet <= 0 || bet > state.cash){ alert('Invalid bet'); return; }
+  if(isNaN(guess) || guess < 0 || guess > 36){ alert('Invalid number 0-36'); return; }
+
+  state.cash -= bet; saveState(); updateTopStats();
+
+  // spin animation: rotate canvas via CSS transform on parent container
+  const container = rouletteCanvas.parentElement;
+  const spinRounds = 4 + Math.floor(Math.random()*3); // 4..6 rounds
+  const landingIndex = Math.floor(Math.random()*pockets.length);
+  const landingAngle = (landingIndex * (360/pockets.length));
+  // we want the wheel to rotate so that that pocket ends under pointer at top
+  // compute finalDeg such that pointer (at -90deg) points to landingAngle
+  // pointer fixed at top, so final rotation = 360*spinRounds + landingAngle + offset
+  const offset = 90; // because canvas 0 angle is to right; pointer at top => offset 90
+  const finalDeg = spinRounds*360 + (landingAngle + offset);
+
+  spinning = true;
+  // animate via requestAnimationFrame to get easing
+  const start = performance.now();
+  const duration = 4200;
+  const initial = getCurrentWheelRotation() || 0;
+  const target = initial + finalDeg;
+  function easeOutCubic(t){ return 1 - Math.pow(1-t,3); }
+
+  function frame(now){
+    const t = Math.min(1, (now - start)/duration);
+    const eased = easeOutCubic(t);
+    const cur = initial + (target - initial) * eased;
+    rouletteCanvas.style.transform = `rotate(${cur}deg)`;
+    if(t < 1) requestAnimationFrame(frame);
+    else {
+      // landed
+      spinning = false;
+      // compute landed index more robustly using final rotation
+      const normalized = ((cur % 360) + 360) % 360;
+      // compute pointer angle (top) -> angle from canvas 0 (to right) to top: -90 or 270
+      const pointerAngle = 270; // canvas 0 at +x, top at -y = 270 deg
+      // compute which segment sits at pointer: segment index = floor((normalized - pointerAngle) / anglePer) mod n
+      const anglePer = 360 / pockets.length;
+      let idx = Math.floor(((pointerAngle - normalized) + 360*1000) / anglePer) % pockets.length;
+      // idx should be 0..36
+      if(idx < 0) idx += pockets.length;
+      const landed = pockets[idx];
+      // resolve bet
+      const msgEl = document.getElementById('rouletteMsg');
+      if(landed === guess){
+        const payout = bet * 36;
+        state.cash += payout;
+        msgEl.innerText = `You hit ${landed}! You win $${payout}.`;
+        msgEl.className = 'message win';
       } else {
-        outcome = 'push'; payout = game.bet;
+        msgEl.innerText = `Wheel landed ${landed}. You lose $${bet}.`;
+        msgEl.className = 'message loss';
+      }
+      saveState(); updateTopStats();
+    }
+  }
+  requestAnimationFrame(frame);
+}
+function getCurrentWheelRotation(){
+  const st = window.getComputedStyle(rouletteCanvas);
+  const tr = st.transform || st.webkitTransform;
+  if(!tr || tr === 'none') return 0;
+  // matrix(a,b,c,d,e,f) => angle = Math.atan2(b, a) in radians
+  const values = tr.match(/matrix\(([^)]+)\)/);
+  if(values){
+    const parts = values[1].split(',').map(Number);
+    const a = parts[0], b = parts[1];
+    const angle = Math.round(Math.atan2(b, a) * (180/Math.PI));
+    return angle;
+  }
+  return 0;
+}
+document.getElementById('rouletteSpinBtn').addEventListener('click', spinRoulette);
+
+/* ============================
+   Poker (1v1 Texas Hold'em) — simple flow
+   - Player and Dealer each get 2 hole cards
+   - Community: flop (3), turn (1), river (1)
+   - Best 5-card hand evaluation
+   ============================ */
+let pokerDeck = [], playerHole = [], dealerHole = [], community = [], pokerPot = 0, pokerCurrentBet = 0, pokerInRound = false;
+
+function newPokerDeck(){
+  pokerDeck = [];
+  for(const s of ['♠','♥','♦','♣']) for(const v of ['A','2','3','4','5','6','7','8','9','10','J','Q','K']) pokerDeck.push({suit:s, val:v});
+  // shuffle
+  for(let i=pokerDeck.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pokerDeck[i], pokerDeck[j]] = [pokerDeck[j], pokerDeck[i]]; }
+}
+function dealHoleCards(){
+  playerHole = [pokerDeck.pop(), pokerDeck.pop()];
+  dealerHole = [pokerDeck.pop(), pokerDeck.pop()];
+}
+function renderPokerUI(){
+  const pdiv = document.getElementById('pokerPlayer');
+  const cdiv = document.getElementById('pokerCommunity');
+  pdiv.innerHTML=''; cdiv.innerHTML='';
+  playerHole.forEach(c=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div style="font-size:18px">${c.val}</div><div style="font-size:20px">${c.suit}</div>`; pdiv.appendChild(el); });
+  community.forEach(c=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div style="font-size:18px">${c.val}</div><div style="font-size:20px">${c.suit}</div>`; cdiv.appendChild(el); });
+  document.getElementById('pokerPot').innerText = pokerPot;
+  document.getElementById('pokerBetDisplay').innerText = pokerCurrentBet;
+}
+
+// choose best 5-card poker hand from 7 cards: returns [rankValue, tiebreaker array], higher rank wins
+// ranks: 9 = straight flush, 8 = four kind, 7 = full house, 6 = flush, 5 = straight, 4 = three kind, 3 = two pair, 2 = pair, 1 = high card
+function rankHand(cards){
+  // convert ranks to numbers
+  const rankMap = {'A':14,'K':13,'Q':12,'J':11};
+  function rv(v){ return rankMap[v]||parseInt(v); }
+  // helper: combinations of 5
+  function comb(arr, k){
+    const res=[];
+    function helper(start, chosen){
+      if(chosen.length===k){ res.push(chosen.slice()); return; }
+      for(let i=start;i<arr.length;i++){ chosen.push(arr[i]); helper(i+1, chosen); chosen.pop(); }
+    }
+    helper(0,[]);
+    return res;
+  }
+  const all5 = comb(cards,5);
+  let best = null;
+  for(const five of all5){
+    // evaluate five-card hand
+    const vals = five.map(c=>rv(c.val)).sort((a,b)=>b-a);
+    // adjust A2345 straight (A counted as 1)
+    const counts = {};
+    five.forEach(c=>{ counts[c.val] = (counts[c.val]||0)+1; });
+    const suits = {};
+    five.forEach(c=>{ suits[c.suit] = (suits[c.suit]||0)+1; });
+    const isFlush = Object.values(suits).some(v=>v===5);
+    // straight?
+    let isStraight=false;
+    let topStraight=0;
+    // handle A-2-3-4-5
+    const uniqueVals = Array.from(new Set(vals)).sort((a,b)=>a-b);
+    const sortedUnique = uniqueVals.slice().sort((a,b)=>a-b);
+    // create all possible sequences
+    let seqMax = -1;
+    for(let i=0;i<sortedUnique.length;i++){
+      let cur = sortedUnique[i];
+      let count = 1;
+      for(let j=i+1;j<sortedUnique.length;j++){
+        if(sortedUnique[j]===sortedUnique[j-1]+1) count++;
+        else break;
+      }
+      if(count>=5) seqMax = Math.max(seqMax, sortedUnique[i+4]);
+    }
+    // simpler: check for straight by trying starting points
+    const valSet = new Set(vals);
+    for(let start=14; start>=5; start--){
+      let ok=true;
+      for(let k=0;k<5;k++){
+        let v = start - k;
+        if(v===14 && !valSet.has(14)) { ok=false; break; } // ace
+        if(!valSet.has(v)) { ok=false; break; }
+      }
+      if(ok){ isStraight=true; topStraight=start; break; }
+    }
+    // special wheel A-2-3-4-5
+    if(!isStraight && valSet.has(14) && valSet.has(2) && valSet.has(3) && valSet.has(4) && valSet.has(5)){ isStraight=true; topStraight=5; }
+
+    // counts
+    const cnts = Object.values(counts).sort((a,b)=>b-a);
+    const four = cnts[0]===4;
+    const three = cnts[0]===3;
+    const pairs = cnts.filter(x=>x===2).length;
+
+    // rank
+    let rank=1; let tiebreak=[];
+    if(isStraight && isFlush){ rank=9; tiebreak=[topStraight]; }
+    else if(four){ rank=8; // find quad value
+      const quadVal = parseInt(Object.keys(counts).find(k=>counts[k]===4));
+      tiebreak=[rv(quadVal), ...vals.filter(v=>v!==rv(quadVal))];
+    }
+    else if(three && pairs>=1){ rank=7; // full house
+      const threeVal = parseInt(Object.keys(counts).find(k=>counts[k]===3));
+      const pairVal = parseInt(Object.keys(counts).find(k=>counts[k]===2));
+      tiebreak=[rv(threeVal), rv(pairVal)];
+    }
+    else if(isFlush){ rank=6; tiebreak = vals; }
+    else if(isStraight){ rank=5; tiebreak=[topStraight]; }
+    else if(three){ rank=4; const threeVal = parseInt(Object.keys(counts).find(k=>counts[k]===3)); tiebreak=[rv(threeVal), ...vals.filter(v=>v!==rv(threeVal))]; }
+    else if(pairs>=2){ rank=3; // two pair
+      const pairVals = Object.keys(counts).filter(k=>counts[k]===2).map(v=>rv(v)).sort((a,b)=>b-a);
+      const kicker = vals.find(v=>!pairVals.includes(v));
+      tiebreak=[...pairVals, kicker];
+    }
+    else if(pairs===1){ rank=2; const pairVal = parseInt(Object.keys(counts).find(k=>counts[k]===2)); tiebreak=[rv(pairVal), ...vals.filter(v=>v!==rv(pairVal))]; }
+    else { rank=1; tiebreak=vals; }
+
+    // choose best by rank then tiebreak lexicographically
+    if(!best) best = {rank, tiebreak};
+    else {
+      if(rank > best.rank) best = {rank, tiebreak};
+      else if(rank === best.rank){
+        for(let i=0;i<Math.max(tiebreak.length,best.tiebreak.length);i++){
+          const a = tiebreak[i]||0, b = best.tiebreak[i]||0;
+          if(a>b){ best={rank,tiebreak}; break; }
+          else if(a<b) break;
+        }
       }
     }
   }
+  return best;
+}
 
-  // apply payout
-  if(outcome === 'win'){
-    state.cash += payout;
-    showMsg(`You win! Payout: $${payout}.`, 'win');
-  } else if(outcome === 'loss'){
-    showMsg('You lose.', 'loss');
-  } else {
-    // push
-    state.cash += payout;
-    showMsg('Push — bet returned.', 'info');
+function compareHands(cardsA, cardsB){
+  const ra = rankHand(cardsA), rb = rankHand(cardsB);
+  if(ra.rank > rb.rank) return 1;
+  if(ra.rank < rb.rank) return -1;
+  // compare tiebreakers
+  for(let i=0;i<Math.max(ra.tiebreak.length, rb.tiebreak.length); i++){
+    const a = ra.tiebreak[i]||0, b = rb.tiebreak[i]||0;
+    if(a > b) return 1;
+    if(a < b) return -1;
   }
-
-  // end round
-  game.inRound = false;
-  game.bet = 0;
-  game.player = [];
-  game.dealer = [];
-  game.initialAction = true;
-  renderAll();
-  updateActionButtons();
-  playerStatusEl.textContent = (outcome === 'win' ? 'You won' : outcome === 'loss' ? 'You lost' : 'Push');
-  dealerStatusEl.textContent = 'Round over';
+  return 0;
 }
 
-/* ===========================
-   Small UI helpers
-   =========================== */
-function showMsg(text, type){
-  msgEl.innerHTML = '';
-  if(!text) return;
-  const div = document.createElement('div');
-  div.className = 'message';
-  if(type === 'win') div.classList.add('win');
-  else if(type === 'loss') div.classList.add('loss');
-  div.textContent = text;
-  msgEl.appendChild(div);
+document.getElementById('pokerDealBtn').addEventListener('click', ()=>{
+  // require alcohol to play
+  if(inventoryCount() <= 0){ alert('You need at least one alcohol unit in your inventory to play poker.'); return; }
+  pokerPot = 0; pokerCurrentBet = parseInt(document.getElementById('pokerBet').value) || 0;
+  if(pokerCurrentBet <= 0 || pokerCurrentBet > state.cash){ alert('Invalid bet'); return; }
+  // deduct bet
+  state.cash -= pokerCurrentBet;
+  pokerPot += pokerCurrentBet;
+  // consume one drink
+  const idx = state.inventory.reduce((best,i,ii)=> (i.qty>0 && i.abv > (best.abv||-1))? Object.assign({i,ii},{abv:i.abv}):best, {});
+  if(idx.ii !== undefined) state.inventory[idx.ii].qty--;
+  else state.inventory[0].qty--;
+  state.day++;
+  saveState(); updateTopStats(); renderFridge(); ensureDrinkSelect();
+
+  newPokerDeck(); playerHole=[]; dealerHole=[]; community=[];
+  dealHoleCards();
+  pokerInRound = true;
+  // enable buttons
+  document.getElementById('pokerFlopBtn').disabled = false;
+  document.getElementById('pokerTurnBtn').disabled = true;
+  document.getElementById('pokerRiverBtn').disabled = true;
+  document.getElementById('pokerShowdownBtn').disabled = true;
+  document.getElementById('pokerMsg').innerText = 'Hole cards dealt. Click Flop to reveal 3 community cards.';
+  renderPokerUI();
+});
+
+document.getElementById('pokerFlopBtn').addEventListener('click', ()=>{
+  if(!pokerInRound) return;
+  // burn one
+  pokerDeck.pop();
+  // deal 3
+  community.push(pokerDeck.pop(), pokerDeck.pop(), pokerDeck.pop());
+  renderPokerUI();
+  document.getElementById('pokerMsg').innerText = 'Flop revealed. Click Turn.';
+  document.getElementById('pokerFlopBtn').disabled = true;
+  document.getElementById('pokerTurnBtn').disabled = false;
+});
+
+document.getElementById('pokerTurnBtn').addEventListener('click', ()=>{
+  if(!pokerInRound) return;
+  pokerDeck.pop(); community.push(pokerDeck.pop());
+  renderPokerUI();
+  document.getElementById('pokerMsg').innerText = 'Turn revealed. Click River.';
+  document.getElementById('pokerTurnBtn').disabled = true;
+  document.getElementById('pokerRiverBtn').disabled = false;
+});
+
+document.getElementById('pokerRiverBtn').addEventListener('click', ()=>{
+  if(!pokerInRound) return;
+  pokerDeck.pop(); community.push(pokerDeck.pop());
+  renderPokerUI();
+  document.getElementById('pokerMsg').innerText = 'River revealed. Click Showdown.';
+  document.getElementById('pokerRiverBtn').disabled = true;
+  document.getElementById('pokerShowdownBtn').disabled = false;
+});
+
+document.getElementById('pokerShowdownBtn').addEventListener('click', ()=>{
+  if(!pokerInRound) return;
+  // reveal dealer hole and evaluate best hands
+  const player7 = playerHole.concat(community);
+  const dealer7 = dealerHole.concat(community);
+  // compare
+  const cmp = compareHands(player7, dealer7);
+  if(cmp > 0){
+    // player win: simple payout 2x
+    state.cash += pokerPot * 2;
+    document.getElementById('pokerMsg').innerText = 'You win the hand! Payout: $' + (pokerPot*2);
+    document.getElementById('pokerMsg').className = 'message win';
+  } else if(cmp < 0){
+    document.getElementById('pokerMsg').innerText = 'Dealer wins.';
+    document.getElementById('pokerMsg').className = 'message loss';
+  } else {
+    state.cash += pokerPot; // push
+    document.getElementById('pokerMsg').innerText = 'Push. Bet returned.';
+    document.getElementById('pokerMsg').className = 'message';
+  }
+  pokerInRound = false;
+  saveState(); updateTopStats();
+  // reset buttons
+  document.getElementById('pokerFlopBtn').disabled = true;
+  document.getElementById('pokerTurnBtn').disabled = true;
+  document.getElementById('pokerRiverBtn').disabled = true;
+  document.getElementById('pokerShowdownBtn').disabled = true;
+});
+
+/* ============================
+   Init poker helper to show hole/comm on UI when dealing
+   ============================ */
+function dealHoleCards(){
+  playerHole = [pokerDeck.pop(), pokerDeck.pop()];
+  dealerHole = [pokerDeck.pop(), pokerDeck.pop()];
+  // Render player's hole; dealer hole will be revealed at showdown
+  const pdiv = document.getElementById('pokerPlayer');
+  pdiv.innerHTML = '';
+  playerHole.forEach(c=>{ const el=document.createElement('div'); el.className='card'; el.innerHTML=`<div style="font-size:18px">${c.val}</div><div style="font-size:20px">${c.suit}</div>`; pdiv.appendChild(el); });
+  renderPokerUI();
 }
 
-/* ===========================
-   Bank / Loan
-   =========================== */
-function takeLoan(){
-  const amt = Math.floor(Number(loanAmountInput.value) || 0);
-  if(amt <= 0) { alert('Enter amount'); return; }
-  state.cash += amt;
-  state.loan += amt;
-  state.credit = Math.max(300, state.credit - 20);
-  renderAll();
-}
-function repayLoan(){
-  const pay = 100;
-  if(state.loan <= 0){ alert('No loan to repay'); return; }
-  const toPay = Math.min(pay, state.loan, state.cash);
-  if(toPay <= 0){ alert('Not enough cash to repay'); return; }
-  state.cash -= toPay;
-  state.loan -= toPay;
-  // slight credit improvement on repayment
-  state.credit = Math.min(850, state.credit + Math.round(toPay/50));
-  renderAll();
-}
-
-/* ===========================
-   Reset
-   =========================== */
-function resetAll(){
-  if(!confirm('Reset all saved progress?')) return;
-  state = JSON.parse(JSON.stringify(defaultState));
-  game.deck = newDeck();
-  game.bet = 0;
-  game.inRound = false;
-  saveState();
-  renderAll();
-  showMsg('Progress reset.', 'info');
-}
-
-/* ===========================
-   Event bindings
-   =========================== */
-document.querySelectorAll('.tabbtn').forEach(b => {
-  b.addEventListener('click', (e) => {
-    document.querySelectorAll('.tabbtn').forEach(x=>x.classList.remove('active'));
-    e.currentTarget.classList.add('active');
+/* ============================
+   Misc & keyboard shortcuts
+   ============================ */
+// tab switching
+document.querySelectorAll('.tabbtn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tabbtn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
     document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-    const view = document.getElementById(e.currentTarget.dataset.view);
+    const view = document.getElementById(btn.dataset.view);
     if(view) view.classList.add('active');
   });
 });
 
-placeBetBtn.addEventListener('click', startRound);
-hitBtn.addEventListener('click', playerHit);
-standBtn.addEventListener('click', playerStand);
-doubleBtn.addEventListener('click', playerDouble);
-resetBtn.addEventListener('click', resetAll);
+// buy drink from fridge button
+document.getElementById('drinkBtn').addEventListener('click', drinkSelected);
 
-takeLoanBtn.addEventListener('click', takeLoan);
-repayLoanBtn.addEventListener('click', repayLoan);
+// save state periodically
+setInterval(saveState, 3000);
 
-spendTimeBtn.addEventListener('click', () => {
-  state.happiness = state.happiness + 10;
-  renderAll();
-  showMsg('You spent time with family. Happiness increased.', 'info');
-});
+/* ============================
+   Quick init
+   ============================ */
+updateTopStats();
+renderFridge();
+ensureDrinkSelect();
+updateDealerList();
 
-drinkBtn.addEventListener('click', () => {
-  const selectedId = drinkSelect.value;
-  const idx = findItemIndexById(selectedId);
-  if(idx < 0){ alert('Select a valid item to drink.'); return; }
-  if(state.inventory[idx].qty <= 0){ alert('No units left of that item.'); return; }
-  drinkItemById(selectedId);
-  showMsg(`You drank ${state.inventory[idx].name || selectedId}.`, 'info');
-});
-
-/* keyboard shortcuts */
-document.addEventListener('keydown', (e) => {
-  if(document.querySelector('#gameView').classList.contains('active')){
-    if(e.key.toLowerCase() === 'h') hitBtn.click();
-    if(e.key.toLowerCase() === 's') standBtn.click();
-    if(e.key.toLowerCase() === 'd') doubleBtn.click();
+/* ============================
+   Background subtle animation via canvas
+   ============================ */
+const bgC = document.getElementById('bgCanvas');
+const bgCtx = bgC.getContext('2d');
+function resizeBg(){ bgC.width = window.innerWidth; bgC.height = window.innerHeight; initBg(); }
+window.addEventListener('resize', resizeBg);
+let particles = [];
+function initBg(){
+  particles = [];
+  const count = Math.floor((bgC.width*bgC.height)/90000); // density
+  for(let i=0;i<count;i++){
+    particles.push({
+      x: Math.random()*bgC.width,
+      y: Math.random()*bgC.height,
+      r: Math.random()*1.8+0.4,
+      vx: (Math.random()-0.5)*0.15,
+      vy: (Math.random()-0.5)*0.15,
+      alpha: Math.random()*0.4+0.1
+    });
   }
+}
+function animateBg(){
+  bgCtx.clearRect(0,0,bgC.width,bgC.height);
+  for(const p of particles){
+    bgCtx.beginPath();
+    bgCtx.arc(p.x,p.y,p.r,0,Math.PI*2);
+    bgCtx.fillStyle = `rgba(16,185,129,${p.alpha})`;
+    bgCtx.fill();
+    p.x += p.vx; p.y += p.vy;
+    if(p.x<0) p.x = bgC.width;
+    if(p.x>bgC.width) p.x=0;
+    if(p.y<0) p.y = bgC.height;
+    if(p.y>bgC.height) p.y=0;
+  }
+  requestAnimationFrame(animateBg);
+}
+resizeBg();
+animateBg();
+
+/* ============================
+   Poker helper: on Deal we must initialize deck and call dealHoleCards()
+   ============================ */
+document.getElementById('pokerDealBtn').addEventListener('click', ()=>{
+  // already handled above; but ensure deck setup and UI
+  // newPokerDeck was called in the button handler — if not, ensure okay:
+  if(!pokerDeck || pokerDeck.length<20) newPokerDeck();
 });
 
-/* ===========================
-   Buying helper (button delegated above)
-   =========================== */
-function buyFromDealer(id){
-  const off = dealerOfferings().find(x=>x.id===id);
-  if(!off) return;
-  if(state.cash < off.price){ alert('Not enough cash'); return; }
-  state.cash -= off.price;
-  addToInventory(off.id, off.name, off.abv, off.price, 1);
-  showMsg(`Bought ${off.name} for $${off.price}.`, 'info');
-}
+/* ============================
+   Blackjack helper details: show dealer hole card properly when not in round
+   ============================ */
+/* Already handled in bjRender() */
 
-/* ===========================
-   Init: ensure some defaults and render
-   =========================== */
-function init(){
-  // ensure deck
-  game.deck = newDeck();
-  renderAll();
-}
-init();
-
-/* Expose repay button (it might be undefined in older DOM)
-   attach repayLoan if present */
-if(document.getElementById('repayLoan')){
-  document.getElementById('repayLoan').addEventListener('click', repayLoan);
-}
-
-/* final render guard */
-updateActionButtons();
-saveState();
 </script>
 </body>
 </html>
