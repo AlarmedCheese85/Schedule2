@@ -957,6 +957,140 @@ document.getElementById('pokerDealBtn').addEventListener('click', ()=>{
   if(!pokerDeck || pokerDeck.length<20) newPokerDeck();
 });
 
+  <!-- Banking System -->
+<div id="banking" style="margin-top:20px; border:1px solid #ccc; padding:10px;">
+  <h2>Banking System</h2>
+  <p>Balance: $<span id="bankBalance">0</span></p>
+  <p>Loan: $<span id="loanAmount">0</span></p>
+
+  <input type="number" id="depositInput" placeholder="Deposit amount">
+  <button onclick="deposit()">Deposit</button>
+
+  <input type="number" id="withdrawInput" placeholder="Withdraw amount">
+  <button onclick="withdraw()">Withdraw</button>
+
+  <input type="number" id="loanInput" placeholder="Loan amount">
+  <button onclick="takeLoan()">Take Loan</button>
+
+  <button onclick="repayLoan()">Repay Loan</button>
+</div>
+
+<!-- Expanded Roulette Options -->
+<div id="roulette" style="margin-top:20px; border:1px solid #ccc; padding:10px;">
+  <h2>Roulette</h2>
+  <input type="number" id="rouletteBet" placeholder="Bet amount">
+  <select id="rouletteType">
+    <option value="even">Even</option>
+    <option value="odd">Odd</option>
+    <option value="red">Red</option>
+    <option value="black">Black</option>
+    <!-- Add number bets dynamically or manually -->
+    <option value="0">0</option>
+    <option value="1">1</option>
+    <option value="2">2</option>
+    <option value="3">3</option>
+    <!-- Continue up to 35 -->
+  </select>
+  <button onclick="placeRouletteBet()">Spin Roulette</button>
+</div>
+
+<script>
+/* ----------------- Banking System ----------------- */
+let bankBalance = 0;
+let loanAmount = 0;
+
+// Make sure this variable exists in your original code
+if(typeof playerMoney === 'undefined'){ var playerMoney = 1000; }
+
+function updateBankDisplay() {
+    document.getElementById("bankBalance").textContent = bankBalance;
+    document.getElementById("loanAmount").textContent = loanAmount;
+}
+
+function deposit() {
+    let amount = parseFloat(document.getElementById("depositInput").value);
+    if(amount > 0 && amount <= playerMoney) {
+        playerMoney -= amount;
+        bankBalance += amount;
+        updateBankDisplay();
+        alert(`Deposited $${amount}`);
+    } else {
+        alert("Invalid deposit amount");
+    }
+}
+
+function withdraw() {
+    let amount = parseFloat(document.getElementById("withdrawInput").value);
+    if(amount > 0 && amount <= bankBalance) {
+        bankBalance -= amount;
+        playerMoney += amount;
+        updateBankDisplay();
+        alert(`Withdrew $${amount}`);
+    } else {
+        alert("Invalid withdraw amount");
+    }
+}
+
+function takeLoan() {
+    let amount = parseFloat(document.getElementById("loanInput").value);
+    if(amount > 0) {
+        loanAmount += amount;
+        playerMoney += amount;
+        updateBankDisplay();
+        alert(`Took a loan of $${amount}`);
+    } else {
+        alert("Invalid loan amount");
+    }
+}
+
+function repayLoan() {
+    if(loanAmount > 0) {
+        let repayment = Math.min(playerMoney, loanAmount);
+        playerMoney -= repayment;
+        loanAmount -= repayment;
+        updateBankDisplay();
+        alert(`Repaid $${repayment} of your loan`);
+    } else {
+        alert("No loan to repay");
+    }
+}
+
+/* ----------------- Expanded Roulette ----------------- */
+function placeRouletteBet() {
+    let betAmount = parseFloat(document.getElementById("rouletteBet").value);
+    let betType = document.getElementById("rouletteType").value;
+
+    if(betAmount <= 0 || betAmount > playerMoney){
+        alert("Invalid bet amount");
+        return;
+    }
+
+    let number = Math.floor(Math.random() * 36); // 0–35
+    let color = (number % 2 === 0) ? 'black' : 'red'; // simple color mapping
+
+    let won = false;
+
+    if(betType === 'even') won = (number !== 0 && number % 2 === 0);
+    else if(betType === 'odd') won = (number % 2 === 1);
+    else if(betType === 'red') won = (color === 'red');
+    else if(betType === 'black') won = (color === 'black');
+    else won = (parseInt(betType) === number); // number bet
+
+    if(won){
+        playerMoney += betAmount * 2; // 1:1 payout
+        alert(`You won! Number: ${number} (${color})`);
+    } else {
+        playerMoney -= betAmount;
+        alert(`You lost. Number: ${number} (${color})`);
+    }
+
+    if(document.getElementById("moneyDisplay")){
+        document.getElementById("moneyDisplay").textContent = playerMoney;
+    }
+}
+</script>
+
+
 /* ============================
    Blackjack helper details: show dealer hole card properly when not in round
    ============================ */
